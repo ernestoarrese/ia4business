@@ -1,0 +1,40 @@
+{
+  "white_names": [
+    "white",
+    "blanco",
+    "opaque white",
+    "wht",
+    "ink white"
+  ],
+  "technical_names": [
+    "dieline",
+    "die",
+    "cut",
+    "cutter",
+    "crease",
+    "register",
+    "dimension",
+    "guide",
+    "guia"
+  ],
+  "varnish_names": [
+    "varnish",
+    "barniz",
+    "opv",
+    "matt varnish",
+    "matte varnish",
+    "gloss varnish",
+    "barniz mate",
+    "barniz brillo"
+  ],
+  "generic_suspicious_names": [
+    "spot 1",
+    "spot 2",
+    "color 1",
+    "color 2",
+    "new color swatch",
+    "unnamed",
+    "separation 1",
+    "separation 2"
+  ]
+}
