@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Gate0 generated files
+data/input/*
+data/output/*
+!data/input/.gitkeep
+!data/output/.gitkeep
