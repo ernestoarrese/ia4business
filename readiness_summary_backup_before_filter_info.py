@@ -15,12 +15,8 @@ def sort_top_risks(findings, limit=3):
     """
     Ordena hallazgos por prioridad de negocio, evitando repetir el mismo check.
 
-    Regla:
-    - Deduplica por check.
-    - Conserva el mejor hallazgo por prioridad/peso/severidad.
-    - Agrega occurrence_count.
-    - Prioriza CRITICAL/WARNING.
-    - INFO solo aparece si no existen riesgos CRITICAL/WARNING suficientes.
+    Si existen varios hallazgos del mismo tipo, conserva el de mayor prioridad
+    y mayor peso, pero agrega occurrence_count para no perder contexto.
     """
     if not findings:
         return []
@@ -76,6 +72,7 @@ def sort_top_risks(findings, limit=3):
         )
 
         current = grouped[check]["best"]
+
         current_business_severity = (
             current.get("business_severity")
             or current.get("severity")
@@ -97,32 +94,18 @@ def sort_top_risks(findings, limit=3):
         item = dict(data["best"])
         item["occurrence_count"] = data["occurrence_count"]
         item["max_score_weight"] = data["max_score_weight"]
-        item["max_severity_score"] = data["max_severity_score"]
         deduped.append(item)
 
     deduped = sorted(
         deduped,
         key=lambda f: (
-            -severity_rank.get(str(f.get("business_severity") or f.get("severity") or "INFO").upper(), 1),
             f.get("priority", 99),
             -f.get("score_weight", 0),
             -f.get("occurrence_count", 1)
         )
     )
 
-    # Primero riesgos reales: WARNING / CRITICAL
-    actionable = [
-        f for f in deduped
-        if severity_rank.get(str(f.get("business_severity") or f.get("severity") or "INFO").upper(), 1) >= 2
-    ]
-
-    # Luego observaciones INFO solo si faltan slots
-    informational = [
-        f for f in deduped
-        if severity_rank.get(str(f.get("business_severity") or f.get("severity") or "INFO").upper(), 1) == 1
-    ]
-
-    return actionable[:limit]
+    return deduped[:limit]
 
 
 

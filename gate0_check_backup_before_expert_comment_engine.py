@@ -12,7 +12,6 @@ from business_rules import build_business_assessment
 from readiness_engine import build_readiness_assessment
 from readiness_summary import build_readiness_summary
 from config.spot_utils import build_spot_inventory
-from expert_comment_engine import enrich_report_with_expert_insights
 
 
 SUPPORTED_EXTENSIONS = [".pdf", ".ai"]
@@ -810,8 +809,6 @@ def build_report(pdf_path):
         "readiness_summary": readiness_summary,
         "findings": context_findings
     }
-
-    report_data = enrich_report_with_expert_insights(report_data)
 
     return report_data
 
