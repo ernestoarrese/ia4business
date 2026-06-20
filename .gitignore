@@ -141,3 +141,6 @@ data/runtime/*
 !data/input/.gitkeep
 !data/output/.gitkeep
 !data/runtime/.gitkeep
+
+# Gate0 history data
+data/history/analysis_history.csv

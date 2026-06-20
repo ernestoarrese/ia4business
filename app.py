@@ -8,6 +8,8 @@ import sys
 import json
 import time
 import uuid
+import csv
+from datetime import datetime
 
 app = FastAPI(title="Gate0 Packaging QA")
 
@@ -18,9 +20,12 @@ REPORTS_DIR = RUNTIME_DIR / "reports"
 DASHBOARD_DIR = ROOT / "dashboard"
 
 TTL_SECONDS = 30 * 60
+HISTORY_DIR = ROOT / "data" / "history"
+HISTORY_CSV = HISTORY_DIR / "analysis_history.csv"
 
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
 
@@ -34,6 +39,70 @@ def cleanup_old_runtime_files():
                     path.unlink()
             except Exception:
                 pass
+
+
+
+def append_analysis_history(data):
+    top_risks = data.get("readiness_summary", {}).get("top_risks", [])
+    top_risk = top_risks[0].get("check") if top_risks else ""
+
+    file_exists = HISTORY_CSV.exists()
+
+    with HISTORY_CSV.open("a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=[
+            "timestamp",
+            "session_id",
+            "client",
+            "file",
+            "score",
+            "decision",
+            "top_risk",
+            "feedback_score",
+            "feedback_comment",
+        ])
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow({
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "session_id": data.get("session_id"),
+            "client": data.get("client"),
+            "file": data.get("file"),
+            "score": data.get("readiness_summary", {}).get("score"),
+            "decision": data.get("readiness_summary", {}).get("decision"),
+            "top_risk": top_risk,
+            "feedback_score": "",
+            "feedback_comment": "",
+        })
+
+
+def update_feedback_history(session_id, feedback_score, feedback_comment):
+    if not HISTORY_CSV.exists():
+        return False
+
+    rows = []
+    updated = False
+
+    with HISTORY_CSV.open("r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames
+        for row in reader:
+            if row.get("session_id") == session_id:
+                row["feedback_score"] = feedback_score
+                row["feedback_comment"] = feedback_comment
+                updated = True
+            rows.append(row)
+
+    if not updated:
+        return False
+
+    with HISTORY_CSV.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return True
 
 
 def session_paths(session_id):
@@ -121,6 +190,8 @@ async def analyze_pdf(file: UploadFile = File(...), client: str = Form(default="
     with paths["json"].open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
+    append_analysis_history(data)
+
     if default_csv.exists():
         shutil.copy(default_csv, paths["csv"])
 
@@ -135,6 +206,24 @@ def get_report(sid: str):
         raise HTTPException(status_code=404, detail="Reporte expirado o inexistente")
     with paths["json"].open("r", encoding="utf-8") as f:
         return JSONResponse(json.load(f))
+
+
+
+@app.post("/api/feedback")
+async def save_feedback(payload: dict):
+    sid = payload.get("sid")
+    score = str(payload.get("score", "")).strip()
+    comment = str(payload.get("comment", "")).strip()
+
+    if not sid:
+        raise HTTPException(status_code=400, detail="Falta sid")
+
+    ok = update_feedback_history(sid, score, comment)
+
+    if not ok:
+        raise HTTPException(status_code=404, detail="No se encontró sesión en histórico")
+
+    return {"ok": True}
 
 
 @app.get("/api/pdf")

@@ -105,68 +105,6 @@
     .future-btn{width:100%}
 }
 
-
-.feedback-box{
-    margin-top:16px;
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:24px;
-    padding:18px;
-}
-
-.feedback-box h3{
-    margin:0 0 8px;
-    font-size:16px;
-    letter-spacing:-.02em;
-}
-
-.feedback-box p{
-    margin:0 0 12px;
-    color:#667085;
-    font-size:14px;
-}
-
-.feedback-row{
-    display:flex;
-    gap:8px;
-    margin-bottom:12px;
-}
-
-.feedback-row button{
-    border:1px solid #e5e7eb;
-    background:#f8fafc;
-    border-radius:999px;
-    padding:8px 12px;
-    cursor:pointer;
-    font-weight:850;
-}
-
-.feedback-row button.active{
-    background:#111827;
-    color:white;
-}
-
-.feedback-box textarea{
-    width:100%;
-    min-height:70px;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    padding:12px;
-    font-family:inherit;
-    resize:vertical;
-}
-
-.feedback-submit{
-    margin-top:10px;
-    border:0;
-    border-radius:999px;
-    background:#111827;
-    color:white;
-    padding:11px 16px;
-    font-weight:950;
-    cursor:pointer;
-}
-
 </style>
 </head>
 <body>
@@ -225,22 +163,6 @@
         <h3 class="section-title">Riesgo seleccionado</h3>
         <div id="riskDetail" class="empty">Selecciona un riesgo para ver comentario experto, evidencia e impacto.</div>
       </div>
-    
-      <div class="feedback-box">
-        <h3>¿Qué tan útil fue este análisis?</h3>
-        <p>Esto ayuda a mejorar Gate0 con archivos reales.</p>
-        <div class="feedback-row">
-          <button type="button" onclick="setFeedbackScore(1)">1</button>
-          <button type="button" onclick="setFeedbackScore(2)">2</button>
-          <button type="button" onclick="setFeedbackScore(3)">3</button>
-          <button type="button" onclick="setFeedbackScore(4)">4</button>
-          <button type="button" onclick="setFeedbackScore(5)">5</button>
-        </div>
-        <textarea id="feedbackComment" placeholder="¿Qué mejoraría o qué no fue claro?"></textarea>
-        <button class="feedback-submit" onclick="sendFeedback()">Guardar feedback</button>
-        <div id="feedbackStatus" class="empty"></div>
-      </div>
-
     </aside>
   </section>
 </div>
@@ -249,23 +171,6 @@
 const $=id=>document.getElementById(id);
 const params=new URLSearchParams(window.location.search);
 const SID=params.get("sid");
-
-const CHECK_NAMES = {
-  "RGB_OBJECT": "Objetos RGB detectados",
-  "LOW_IMAGE_RESOLUTION": "Resolución de imagen insuficiente",
-  "FONT_NOT_EMBEDDED": "Fuentes no embebidas",
-  "HIGH_TAC_RISK": "Cobertura total de tinta elevada",
-  "OVERPRINT_RISK": "Observación de sobreimpresión",
-  "WHITE_INK_RISK": "Gestión de tinta blanca",
-  "SPOT_COLOR_RISK": "Observación en tintas spot",
-  "SEPARATION_COUNT_RISK": "Complejidad de separaciones",
-  "PDF_STRUCTURE_RISK": "Estructura PDF"
-};
-
-function displayName(check){
-  return CHECK_NAMES[check] || check;
-}
-
 let currentReport=null,currentRisks=[];
 
 function sev(r){return r.business_severity||r.severity||"INFO"}
@@ -313,7 +218,7 @@ function renderRisks(risks){
   box.innerHTML=risks.map((r,i)=>`
     <div class="risk-item" id="risk-${i}" onclick="selectRisk(${i})">
       <div class="risk-top">
-        <div class="risk-title">${esc(r.title||displayName(r.check))}</div>
+        <div class="risk-title">${esc(r.title||r.check)}</div>
         <span class="badge ${esc(sev(r))}">${esc(sev(r))}</span>
       </div>
       <div class="risk-comment">${esc(r.expert_comment||r.risk_reason||r.detail||"Revisar hallazgo.")}</div>
@@ -330,7 +235,7 @@ function selectRisk(i){
   const insight=r.expert_insight||{};
   $("riskDetail").innerHTML=`
     <div class="risk-top">
-      <h2>${esc(r.title||displayName(r.check))}</h2>
+      <h2>${esc(r.title||r.check)}</h2>
       <span class="badge ${esc(sev(r))}">${esc(sev(r))}</span>
     </div>
 
@@ -362,42 +267,6 @@ function selectRisk(i){
       <button class="future-btn" disabled>⚡ Sugerir correcciones</button>
     </div>
   `;
-}
-
-
-let feedbackScore="";
-
-function setFeedbackScore(score){
-  feedbackScore=String(score);
-  document.querySelectorAll(".feedback-row button").forEach(btn=>btn.classList.remove("active"));
-  const btn=[...document.querySelectorAll(".feedback-row button")].find(b=>b.textContent===String(score));
-  if(btn)btn.classList.add("active");
-}
-
-async function sendFeedback(){
-  if(!SID){
-    $("feedbackStatus").textContent="No hay sesión activa.";
-    return;
-  }
-
-  const comment=$("feedbackComment")?.value||"";
-
-  if(!feedbackScore && !comment.trim()){
-    $("feedbackStatus").textContent="Agrega una calificación o comentario.";
-    return;
-  }
-
-  const res=await fetch("/api/feedback",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({sid:SID,score:feedbackScore,comment})
-  });
-
-  if(res.ok){
-    $("feedbackStatus").textContent="Feedback guardado.";
-  }else{
-    $("feedbackStatus").textContent="No se pudo guardar el feedback.";
-  }
 }
 
 async function loadReport(){
