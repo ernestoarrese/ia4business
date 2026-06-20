@@ -114,12 +114,19 @@ def _build_font_insight(top_risk, related):
     font_names = [f.get("font_name") or f.get("value") for f in related if f.get("font_name") or f.get("value")]
     sample = ", ".join(str(x) for x in font_names[:2])
 
-    if sample:
-        found = f"Se detectaron {count} fuentes no embebidas, incluyendo {sample}."
-        brief = f"Hay {count} fuentes no embebidas, incluyendo {sample}. Esto puede hacer que el texto cambie o se reemplace al procesar el PDF. Conviene incrustar las fuentes o convertir el texto a curvas antes de liberar."
+    if count == 1:
+        font_label = "1 fuente no embebida"
+        found_prefix = "Se detectó"
     else:
-        found = f"Se detectaron {count} fuentes no embebidas."
-        brief = f"Hay {count} fuentes no embebidas. Esto puede hacer que el texto cambie o se reemplace al procesar el PDF. Conviene incrustar las fuentes o convertir el texto a curvas antes de liberar."
+        font_label = f"{count} fuentes no embebidas"
+        found_prefix = "Se detectaron"
+
+    if sample:
+        found = f"{found_prefix} {font_label}, incluyendo {sample}."
+        brief = f"Hay {font_label}, incluyendo {sample}. Esto puede hacer que el texto cambie o se reemplace al procesar el PDF. Conviene incrustar las fuentes o convertir el texto a curvas antes de liberar."
+    else:
+        found = f"{found_prefix} {font_label}."
+        brief = f"Hay {font_label}. Esto puede hacer que el texto cambie o se reemplace al procesar el PDF. Conviene incrustar las fuentes o convertir el texto a curvas antes de liberar."
 
     return {
         "brief_comment": brief,
@@ -130,6 +137,7 @@ def _build_font_insight(top_risk, related):
         "urgency": _severity_to_urgency(_get_severity(top_risk)),
         "evidence": {"occurrence_count": count, "sample_fonts": font_names[:3], "page": top_risk.get("page"), "rule_applied": "FONT_NOT_EMBEDDED", "confidence": "Alta"}
     }
+
 
 
 def _build_spot_insight(top_risk, related):
