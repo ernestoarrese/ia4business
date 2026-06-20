@@ -133,3 +133,11 @@ data/input/*
 data/output/*
 !data/input/.gitkeep
 !data/output/.gitkeep
+
+# Gate0 runtime/private files
+data/input/*
+data/output/*
+data/runtime/*
+!data/input/.gitkeep
+!data/output/.gitkeep
+!data/runtime/.gitkeep

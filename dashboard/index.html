@@ -151,7 +151,7 @@
 
 
   <section class="main">
-    <div class="card viewer"><iframe src="/api/pdf" title="PDF analizado"></iframe></div>
+    <div class="card viewer"><iframe id="pdfFrame" title="PDF analizado"></iframe></div>
 
     <aside class="side">
       <div class="card">
@@ -169,6 +169,8 @@
 
 <script>
 const $=id=>document.getElementById(id);
+const params=new URLSearchParams(window.location.search);
+const SID=params.get("sid");
 let currentReport=null,currentRisks=[];
 
 function sev(r){return r.business_severity||r.severity||"INFO"}
@@ -269,7 +271,7 @@ function selectRisk(i){
 
 async function loadReport(){
   try{
-    const res=await fetch("/api/report",{cache:"no-store"});
+    const res=await fetch(`/api/report?sid=${encodeURIComponent(SID||"")}`,{cache:"no-store"});
     if(!res.ok)throw new Error("No se pudo cargar /api/report");
     currentReport=await res.json();
     render(currentReport);
@@ -279,6 +281,7 @@ async function loadReport(){
   }
 }
 
+if($("pdfFrame")) $("pdfFrame").src=`/api/pdf?sid=${encodeURIComponent(SID||"")}`;
 loadReport();
 </script>
 </body>
