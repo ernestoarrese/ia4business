@@ -42,41 +42,24 @@ def cleanup_old_runtime_files():
 
 
 
-
 def append_analysis_history(data):
-    summary = data.get("readiness_summary", {})
-    assessment = data.get("readiness_assessment", {})
-    metrics = assessment.get("readiness_metrics", {})
-    top_risks = summary.get("top_risks", [])
-    top = top_risks[0] if top_risks else {}
-
-    top_risk = top.get("check", "")
-    top_risk_title = top.get("title") or top.get("check", "")
-    top_risk_severity = top.get("business_severity") or top.get("severity") or ""
+    top_risks = data.get("readiness_summary", {}).get("top_risks", [])
+    top_risk = top_risks[0].get("check") if top_risks else ""
 
     file_exists = HISTORY_CSV.exists()
 
-    fieldnames = [
-        "timestamp",
-        "session_id",
-        "client",
-        "file",
-        "score",
-        "status",
-        "decision",
-        "critical_count",
-        "warning_count",
-        "info_count",
-        "top_risk",
-        "top_risk_title",
-        "top_risk_severity",
-        "analysis_duration_seconds",
-        "feedback_score",
-        "feedback_comment",
-    ]
-
     with HISTORY_CSV.open("a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=[
+            "timestamp",
+            "session_id",
+            "client",
+            "file",
+            "score",
+            "decision",
+            "top_risk",
+            "feedback_score",
+            "feedback_comment",
+        ])
 
         if not file_exists:
             writer.writeheader()
@@ -86,16 +69,9 @@ def append_analysis_history(data):
             "session_id": data.get("session_id"),
             "client": data.get("client"),
             "file": data.get("file"),
-            "score": summary.get("score"),
-            "status": summary.get("status"),
-            "decision": summary.get("decision"),
-            "critical_count": metrics.get("critical_count", 0),
-            "warning_count": metrics.get("warning_count", 0),
-            "info_count": metrics.get("info_count", 0),
+            "score": data.get("readiness_summary", {}).get("score"),
+            "decision": data.get("readiness_summary", {}).get("decision"),
             "top_risk": top_risk,
-            "top_risk_title": top_risk_title,
-            "top_risk_severity": top_risk_severity,
-            "analysis_duration_seconds": data.get("analysis_duration_seconds", ""),
             "feedback_score": "",
             "feedback_comment": "",
         })
@@ -191,9 +167,7 @@ async def analyze_pdf(file: UploadFile = File(...), client: str = Form(default="
         shutil.copyfileobj(file.file, buffer)
 
     cmd = [sys.executable, "gate0_check.py", str(paths["pdf"])]
-    analysis_start = time.time()
     result = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
-    analysis_duration_seconds = round(time.time() - analysis_start, 2)
 
     if result.returncode != 0:
         return HTMLResponse(f"<h1>Error ejecutando Gate0</h1><pre>{result.stderr}</pre><pre>{result.stdout}</pre>", status_code=500)
@@ -212,7 +186,6 @@ async def analyze_pdf(file: UploadFile = File(...), client: str = Form(default="
     data["process"] = data.get("business_assessment", {}).get("process", "flexo")
     data["session_id"] = session_id
     data["runtime_ttl_minutes"] = 30
-    data["analysis_duration_seconds"] = analysis_duration_seconds
 
     with paths["json"].open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
