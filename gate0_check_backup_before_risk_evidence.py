@@ -13,7 +13,6 @@ from readiness_engine import build_readiness_assessment
 from readiness_summary import build_readiness_summary
 from config.spot_utils import build_spot_inventory
 from expert_comment_engine import enrich_report_with_expert_insights
-from risk_evidence_engine import enrich_report_with_risk_evidence
 
 
 SUPPORTED_EXTENSIONS = [".pdf", ".ai"]
@@ -813,7 +812,6 @@ def build_report(pdf_path):
     }
 
     report_data = enrich_report_with_expert_insights(report_data)
-    report_data = enrich_report_with_risk_evidence(report_data)
 
     return report_data
 
