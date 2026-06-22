@@ -20,7 +20,6 @@ RUNTIME_DIR = ROOT / "data" / "runtime"
 UPLOADS_DIR = RUNTIME_DIR / "uploads"
 REPORTS_DIR = RUNTIME_DIR / "reports"
 TEMP_DIR = RUNTIME_DIR / "temp"
-MANUAL_UPLOADS_DIR = RUNTIME_DIR / "manual_uploads"
 DASHBOARD_DIR = ROOT / "dashboard"
 
 TTL_SECONDS = 30 * 60
@@ -30,7 +29,6 @@ HISTORY_CSV = HISTORY_DIR / "analysis_history.csv"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
-MANUAL_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
@@ -183,16 +181,6 @@ def scan_intake_folder(folder):
         suffix = path.suffix.lower()
         rel = str(path.relative_to(folder))
 
-        # Ignorar basura común de ZIP generado en Mac y archivos vacíos
-        if "__MACOSX" in path.parts:
-            continue
-
-        if path.name.startswith("._") or path.name == ".DS_Store":
-            continue
-
-        if path.stat().st_size == 0:
-            continue
-
         item = {
             "name": path.name,
             "relative_path": rel,
@@ -307,38 +295,10 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
 """
 
 
-
-def list_manual_zips():
-    items = []
-    for path in sorted(MANUAL_UPLOADS_DIR.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True):
-        items.append({
-            "name": path.name,
-            "size_mb": round(path.stat().st_size / (1024 * 1024), 2),
-        })
-    return items
-
-
 @app.get("/", response_class=HTMLResponse)
 def upload_page():
     cleanup_old_runtime_files()
-    manual_zips = list_manual_zips()
-
-    zip_cards = ""
-    for z in manual_zips:
-        zip_cards += f"""
-        <label class="zip-card">
-          <input type="radio" name="zip_name" value="{html.escape(z['name'])}">
-          <div>
-            <b>{html.escape(z['name'])}</b>
-            <span>{z['size_mb']} MB · ZIP local</span>
-          </div>
-        </label>
-        """
-
-    if not zip_cards:
-        zip_cards = '<div class="empty">No hay ZIPs locales en data/runtime/manual_uploads/</div>'
-
-    return f"""
+    return """
 <!doctype html>
 <html lang="es">
 <head>
@@ -346,50 +306,28 @@ def upload_page():
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Gate0 Upload</title>
 <style>
-body{{margin:0;min-height:100vh;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f6f7fb;color:#0f172a;display:grid;place-items:center}}
-.card{{width:min(820px,92vw);background:white;border:1px solid #e5e7eb;border-radius:28px;padding:36px;box-shadow:0 24px 70px rgba(15,23,42,.10)}}
-.logo{{width:48px;height:48px;border-radius:16px;background:#111827;color:#fff;display:grid;place-items:center;font-weight:950;margin-bottom:18px}}
-h1{{font-size:38px;letter-spacing:-.05em;margin:0 0 8px}}
-h2{{font-size:18px;margin:26px 0 10px}}
-p{{color:#667085;line-height:1.45}}
-.drop{{margin-top:18px;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:24px;padding:24px}}
-label{{display:block;font-weight:850;margin:0 0 8px}}
-input[type=text], input[type=file]{{width:100%;padding:14px;border:1px solid #e5e7eb;border-radius:14px;background:white;margin-bottom:16px;font-size:15px}}
-button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;padding:15px 18px;font-weight:950;font-size:16px;cursor:pointer}}
-.note{{font-size:13px;color:#667085;margin-top:14px}}
-.zip-card{{display:flex;gap:12px;align-items:flex-start;border:1px solid #e5e7eb;border-radius:18px;padding:14px;margin:10px 0;cursor:pointer;background:#fff}}
-.zip-card:hover{{border-color:#93c5fd;background:#f8fafc}}
-.zip-card input{{margin-top:4px}}
-.zip-card b{{display:block}}
-.zip-card span{{display:block;color:#667085;font-size:13px;margin-top:4px}}
-.empty{{padding:16px;background:#f8fafc;border:1px solid #edf2f7;border-radius:16px;color:#667085}}
-.divider{{height:1px;background:#e5e7eb;margin:26px 0}}
+body{margin:0;min-height:100vh;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f6f7fb;color:#0f172a;display:grid;place-items:center}
+.card{width:min(720px,92vw);background:white;border:1px solid #e5e7eb;border-radius:28px;padding:36px;box-shadow:0 24px 70px rgba(15,23,42,.10)}
+.logo{width:48px;height:48px;border-radius:16px;background:#111827;color:#fff;display:grid;place-items:center;font-weight:950;margin-bottom:18px}
+h1{font-size:38px;letter-spacing:-.05em;margin:0 0 8px}p{color:#667085;line-height:1.45}
+.drop{margin-top:24px;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:24px;padding:28px}
+label{display:block;font-weight:850;margin:0 0 8px}input{width:100%;padding:14px;border:1px solid #e5e7eb;border-radius:14px;background:white;margin-bottom:16px;font-size:15px}
+button{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;padding:15px 18px;font-weight:950;font-size:16px;cursor:pointer}
+.note{font-size:13px;color:#667085;margin-top:14px}
 </style>
 </head>
 <body>
 <main class="card">
   <div class="logo">G0</div>
   <h1>Gate0 Packaging QA</h1>
-  <p>Sube un PDF/ZIP pequeño o selecciona un ZIP local grande desde runtime.</p>
-
+  <p>Sube un PDF o ZIP. Si es ZIP, Gate0 mostrará los archivos analizables para que selecciones uno.</p>
   <form class="drop" action="/analyze" method="post" enctype="multipart/form-data">
     <label>Cliente / Proyecto opcional</label>
     <input type="text" name="client" placeholder="Ejemplo: Control Test"/>
-    <label>Archivo PDF o ZIP pequeño</label>
-    <input type="file" name="file" accept="application/pdf,.pdf,.zip,application/zip"/>
-    <button type="submit">Analizar archivo subido</button>
-    <div class="note">Para ZIPs grandes usa la sección inferior.</div>
-  </form>
-
-  <div class="divider"></div>
-
-  <form action="/analyze-local-zip" method="post">
-    <label>Cliente / Proyecto opcional</label>
-    <input type="text" name="client" placeholder="Ejemplo: Cliente ZIP"/>
-    <h2>ZIPs locales grandes</h2>
-    <p>Coloca tus ZIPs en <b>data/runtime/manual_uploads/</b> y aparecerán aquí.</p>
-    {zip_cards}
-    <button type="submit">Abrir ZIP seleccionado</button>
+    <label>Archivo PDF o ZIP</label>
+    <input type="file" name="file" accept="application/pdf,.pdf,.zip,application/zip" required/>
+    <button type="submit">Analizar archivo</button>
+    <div class="note">Runtime seguro v1: archivos temporales con limpieza automática.</div>
   </form>
 </main>
 </body>
@@ -397,11 +335,12 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
 """
 
 
+
 def run_gate0_analysis(input_file_path, original_filename, client, session_id, input_type="PDF", files_detected=1):
     paths = session_paths(session_id)
 
+    # Copia el archivo seleccionado al runtime principal solo si viene de otra ruta
     input_file_path = Path(input_file_path)
-
     if input_file_path.resolve() != paths["pdf"].resolve():
         shutil.copy(input_file_path, paths["pdf"])
 
@@ -411,10 +350,7 @@ def run_gate0_analysis(input_file_path, original_filename, client, session_id, i
     analysis_duration_seconds = round(time.time() - analysis_start, 2)
 
     if result.returncode != 0:
-        return HTMLResponse(
-            f"<h1>Error ejecutando Gate0</h1><pre>{result.stderr}</pre><pre>{result.stdout}</pre>",
-            status_code=500
-        )
+        return HTMLResponse(f"<h1>Error ejecutando Gate0</h1><pre>{result.stderr}</pre><pre>{result.stdout}</pre>", status_code=500)
 
     default_json = ROOT / "data" / "output" / "gate0_report.json"
     default_csv = ROOT / "data" / "output" / "gate0_report.csv"
@@ -425,7 +361,7 @@ def run_gate0_analysis(input_file_path, original_filename, client, session_id, i
     with default_json.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    data["file"] = original_filename or input_file_path.name
+    data["file"] = original_filename or Path(input_file_path).name
     data["client"] = client.strip() if client and client.strip() else "Sin cliente"
     data["process"] = data.get("business_assessment", {}).get("process", "flexo")
     data["session_id"] = session_id
@@ -493,43 +429,6 @@ async def analyze_pdf(file: UploadFile = File(...), client: str = Form(default="
         "client": client.strip() if client and client.strip() else "Sin cliente",
         "source_zip": filename,
         "inventory": inventory,
-    }
-
-    with paths["json"].open("w", encoding="utf-8") as f:
-        json.dump(inventory_data, f, indent=4, ensure_ascii=False)
-
-    return HTMLResponse(render_zip_selection(session_id, client, inventory))
-
-
-
-@app.post("/analyze-local-zip")
-async def analyze_local_zip(zip_name: str = Form(...), client: str = Form(default="")):
-    cleanup_old_runtime_files()
-
-    # seguridad: solo nombre, no path
-    zip_name = Path(zip_name).name
-    source_zip = MANUAL_UPLOADS_DIR / zip_name
-
-    if not source_zip.exists() or source_zip.suffix.lower() != ".zip":
-        raise HTTPException(status_code=404, detail="ZIP local no encontrado.")
-
-    session_id = uuid.uuid4().hex
-    extract_dir = TEMP_DIR / session_id
-
-    try:
-        safe_extract_zip(source_zip, extract_dir)
-    except zipfile.BadZipFile:
-        raise HTTPException(status_code=400, detail="ZIP inválido o corrupto.")
-
-    inventory = scan_intake_folder(extract_dir)
-
-    paths = session_paths(session_id)
-    inventory_data = {
-        "session_id": session_id,
-        "client": client.strip() if client and client.strip() else "Sin cliente",
-        "source_zip": zip_name,
-        "inventory": inventory,
-        "input_type": "LOCAL_ZIP",
     }
 
     with paths["json"].open("w", encoding="utf-8") as f:
