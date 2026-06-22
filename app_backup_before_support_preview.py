@@ -231,9 +231,8 @@ def possible_duplicate_note(analyzable):
     return "Hay archivos con nombres similares. Pueden corresponder al mismo diseño; selecciona solo la versión que deseas analizar."
 
 
-
 def render_zip_selection(session_id, client, inventory):
-    analyzable = inventory.get("analyzable", [])
+    analyzable = inventory["analyzable"]
     duplicate_note = possible_duplicate_note(analyzable)
 
     options = ""
@@ -257,16 +256,6 @@ def render_zip_selection(session_id, client, inventory):
     if not options:
         options = '<div class="empty">No se encontraron PDF o AI analizables dentro del ZIP.</div>'
 
-    support_images = "".join(
-        f"<li>{html.escape(item['name'])} <span>{item['size_mb']} MB</span></li>"
-        for item in inventory.get("images", [])[:20]
-    ) or "<li>No se detectaron imágenes soporte.</li>"
-
-    support_fonts = "".join(
-        f"<li>{html.escape(item['name'])} <span>{item['size_mb']} MB</span></li>"
-        for item in inventory.get("fonts", [])[:30]
-    ) or "<li>No se detectaron fuentes soporte.</li>"
-
     return f"""
 <!doctype html>
 <html lang="es">
@@ -276,7 +265,7 @@ def render_zip_selection(session_id, client, inventory):
 <title>Gate0 ZIP Intake</title>
 <style>
 body{{margin:0;min-height:100vh;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f6f7fb;color:#0f172a;display:grid;place-items:center}}
-.card{{width:min(960px,94vw);background:white;border:1px solid #e5e7eb;border-radius:28px;padding:32px;box-shadow:0 24px 70px rgba(15,23,42,.10)}}
+.card{{width:min(860px,94vw);background:white;border:1px solid #e5e7eb;border-radius:28px;padding:32px;box-shadow:0 24px 70px rgba(15,23,42,.10)}}
 h1{{font-size:34px;letter-spacing:-.05em;margin:0 0 8px}}
 p{{color:#667085;line-height:1.45}}
 .summary{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0}}
@@ -291,12 +280,6 @@ p{{color:#667085;line-height:1.45}}
 .note{{background:#fffbeb;border:1px solid #fde68a;border-radius:16px;padding:12px;color:#92400e;margin:14px 0}}
 button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;padding:15px 18px;font-weight:950;font-size:16px;cursor:pointer;margin-top:16px}}
 .empty{{padding:18px;background:#f8fafc;border-radius:16px;color:#667085}}
-.support-box{{margin-top:20px;background:#f8fafc;border:1px solid #edf2f7;border-radius:18px;padding:16px}}
-.support-box h3{{margin:0 0 8px;font-size:16px}}
-.support-grid{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}
-.support-box ul{{margin:8px 0 0;padding-left:18px;color:#334155;font-size:13px;line-height:1.45;max-height:220px;overflow:auto}}
-.support-box li span{{color:#667085;font-size:12px}}
-@media(max-width:800px){{.summary,.support-grid{{grid-template-columns:1fr}}}}
 </style>
 </head>
 <body>
@@ -305,9 +288,9 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
   <p>Gate0 encontró archivos dentro del ZIP. En esta versión se analiza un archivo a la vez.</p>
 
   <div class="summary">
-    <div><b>{len(inventory.get("analyzable", []))}</b><span>PDF / AI analizables</span></div>
-    <div><b>{len(inventory.get("images", []))}</b><span>Imágenes soporte</span></div>
-    <div><b>{len(inventory.get("fonts", []))}</b><span>Fuentes soporte</span></div>
+    <div><b>{len(inventory["analyzable"])}</b><span>PDF / AI analizables</span></div>
+    <div><b>{len(inventory["images"])}</b><span>Imágenes soporte</span></div>
+    <div><b>{len(inventory["fonts"])}</b><span>Fuentes soporte</span></div>
   </div>
 
   {f'<div class="note">{html.escape(duplicate_note)}</div>' if duplicate_note else ''}
@@ -318,20 +301,6 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
     {options}
     <button type="submit" {"disabled" if not analyzable else ""}>Analizar seleccionado</button>
   </form>
-
-  <div class="support-box">
-    <h3>Soportes encontrados</h3>
-    <div class="support-grid">
-      <div>
-        <b>Imágenes ({len(inventory.get("images", []))})</b>
-        <ul>{support_images}</ul>
-      </div>
-      <div>
-        <b>Fuentes ({len(inventory.get("fonts", []))})</b>
-        <ul>{support_fonts}</ul>
-      </div>
-    </div>
-  </div>
 </main>
 </body>
 </html>
@@ -347,7 +316,6 @@ def list_manual_zips():
             "size_mb": round(path.stat().st_size / (1024 * 1024), 2),
         })
     return items
-
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -427,8 +395,6 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
 </body>
 </html>
 """
-
-
 
 
 def run_gate0_analysis(input_file_path, original_filename, client, session_id, input_type="PDF", files_detected=1):
