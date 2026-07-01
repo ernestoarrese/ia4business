@@ -47,9 +47,31 @@ class InspectionEngine:
                     "rotation": page.rotation,
                 })
 
+            live_fonts = []
+
+            for page_index, page in enumerate(doc):
+                try:
+                    fonts = page.get_fonts(full=True)
+                except Exception:
+                    fonts = []
+
+                for font in fonts:
+                    font_name = font[3] if len(font) > 3 else "unknown"
+                    font_type = font[2] if len(font) > 2 else "unknown"
+                    embedded = bool(font[6]) if len(font) > 6 else False
+
+                    live_fonts.append({
+                        "page": page_index + 1,
+                        "font_name": font_name,
+                        "font_type": font_type,
+                        "embedded": embedded,
+                        "is_embedded": embedded,
+                    })
+
             pdf_structure = {
                 "page_count": pages,
                 "file_size_mb": metadata["file_size_mb"],
+                "font_count": len(live_fonts),
             }
 
         return InspectionResult(
@@ -57,5 +79,6 @@ class InspectionEngine:
             pages=pages,
             page_boxes=page_boxes,
             pdf_structure=pdf_structure,
+            live_fonts=live_fonts,
             metadata=metadata,
         )

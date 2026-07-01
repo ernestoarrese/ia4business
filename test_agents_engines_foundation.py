@@ -28,6 +28,8 @@ def test_inspection_agent_returns_inspection_result(tmp_path):
     assert result.pages == 1
     assert result.pdf_structure["page_count"] == 1
     assert result.page_boxes[0]["width_mm"] > 0
+    assert "font_count" in result.pdf_structure
+    assert isinstance(result.live_fonts, list)
 
 
 def test_engines_can_be_created():
