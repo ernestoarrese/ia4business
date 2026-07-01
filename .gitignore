@@ -144,3 +144,6 @@ data/runtime/*
 
 # Gate0 history data
 data/history/analysis_history.csv
+
+# Local backups
+backups/
