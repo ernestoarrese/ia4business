@@ -1,55 +1,82 @@
 """
 gate0_orchestrator.py
 
-Fachada de arquitectura Gate0 v1.
+Orquestador principal de Gate0.
 
 Objetivo:
-- Preparar Gate0 para una arquitectura modular tipo agentes.
-- No reemplaza todavía gate0_check.py.
-- No cambia reglas, checks ni dashboard.
-- Sirve como punto de entrada futuro para coordinar módulos.
+- Crear un punto único de entrada futuro para Gate0.
+- Mantener compatibilidad con el pipeline actual.
+- No modificar checks, reglas, dashboard ni histórico.
+- En v1 usa el pipeline legacy existente: gate0_check.py.
 """
+
+import json
+import subprocess
+import sys
+from pathlib import Path
 
 
 class Gate0Orchestrator:
     """
-    Orquestador lógico de Gate0.
+    Director de orquesta de Gate0.
 
-    Bloques:
-    1. Inspection Agent
-    2. QA Decision Agent
-    3. Packaging Expert Agent
-    4. Reporting / History Agent
+    En esta versión inicial, no reimplementa el flujo completo por agentes.
+    Envuelve el pipeline actual para preparar la transición futura.
     """
 
-    def inspect(self, input_file):
-        """
-        Futuro punto de entrada para inspección técnica.
-        Hoy la lógica vive principalmente en gate0_check.py.
-        """
-        raise NotImplementedError("Inspection Agent todavía usa gate0_check.py")
+    def __init__(self, root_path=None):
+        self.root_path = Path(root_path or Path(__file__).parent).resolve()
+        self.output_json = self.root_path / "data" / "output" / "gate0_report.json"
 
-    def evaluate(self, findings):
+    def run_legacy_pipeline(self, input_file):
         """
-        Futuro punto de entrada para reglas de negocio y readiness.
-        """
-        raise NotImplementedError("QA Decision Agent todavía usa business_rules.py/readiness_engine.py")
+        Ejecuta el pipeline actual usando gate0_check.py.
 
-    def explain(self, report_data):
+        Este método mantiene vivo el MVP mientras migramos gradualmente hacia:
+        InspectionAgent → QADecisionAgent → PackagingExpertAgent → ReportingAgent.
         """
-        Futuro punto de entrada para interpretación experta.
-        """
-        raise NotImplementedError("Packaging Expert Agent todavía usa readiness_summary/expert engines")
+        input_file = Path(input_file)
 
-    def report(self, report_data):
-        """
-        Futuro punto de entrada para reporting, histórico y dashboard.
-        """
-        raise NotImplementedError("Reporting/History Agent todavía vive en app.py")
+        cmd = [
+            sys.executable,
+            "gate0_check.py",
+            str(input_file)
+        ]
+
+        result = subprocess.run(
+            cmd,
+            cwd=str(self.root_path),
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                "Gate0 legacy pipeline failed.\n\n"
+                f"STDOUT:\n{result.stdout}\n\n"
+                f"STDERR:\n{result.stderr}"
+            )
+
+        if not self.output_json.exists():
+            raise FileNotFoundError(
+                f"No se encontró el reporte esperado: {self.output_json}"
+            )
+
+        with self.output_json.open("r", encoding="utf-8") as f:
+            return json.load(f)
 
     def run(self, input_file):
         """
-        Futuro flujo completo:
-        inspect → evaluate → explain → report
+        Punto de entrada principal del orquestador.
+
+        En v1:
+        - Ejecuta el pipeline legacy completo.
+        - Devuelve el report_data final como dict.
+
+        En versiones futuras:
+        - InspectionAgent.inspect()
+        - QADecisionAgent.evaluate()
+        - PackagingExpertAgent.explain()
+        - ReportingAgent.report()
         """
-        raise NotImplementedError("Gate0Orchestrator es una fachada inicial; no ejecuta aún el pipeline.")
+        return self.run_legacy_pipeline(input_file)
