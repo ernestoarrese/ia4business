@@ -15,6 +15,7 @@ from datetime import datetime
 from gate0.services.history_service import HistoryService
 from gate0.services.runtime_service import RuntimeService
 from gate0.services.zip_inventory_service import ZIPInventoryService
+from gate0_orchestrator import Gate0Orchestrator
 
 app = FastAPI(title="Gate0 Packaging QA")
 
@@ -38,6 +39,7 @@ HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 history_service = HistoryService(HISTORY_CSV)
 runtime_service = RuntimeService(UPLOADS_DIR, REPORTS_DIR, TEMP_DIR, TTL_SECONDS)
 zip_inventory_service = ZIPInventoryService()
+orchestrator = Gate0Orchestrator(ROOT)
 
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
 
@@ -277,25 +279,19 @@ def run_gate0_analysis(input_file_path, original_filename, client, session_id, i
     if input_file_path.resolve() != paths["pdf"].resolve():
         shutil.copy(input_file_path, paths["pdf"])
 
-    cmd = [sys.executable, "gate0_check.py", str(paths["pdf"])]
     analysis_start = time.time()
-    result = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
-    analysis_duration_seconds = round(time.time() - analysis_start, 2)
 
-    if result.returncode != 0:
+    try:
+        data = orchestrator.run(paths["pdf"])
+    except Exception as exc:
         return HTMLResponse(
-            f"<h1>Error ejecutando Gate0</h1><pre>{result.stderr}</pre><pre>{result.stdout}</pre>",
+            f"<h1>Error ejecutando Gate0</h1><pre>{exc}</pre>",
             status_code=500
         )
 
-    default_json = ROOT / "data" / "output" / "gate0_report.json"
+    analysis_duration_seconds = round(time.time() - analysis_start, 2)
+
     default_csv = ROOT / "data" / "output" / "gate0_report.csv"
-
-    if not default_json.exists():
-        raise HTTPException(status_code=500, detail="No se encontró gate0_report.json")
-
-    with default_json.open("r", encoding="utf-8") as f:
-        data = json.load(f)
 
     data["file"] = original_filename or input_file_path.name
     data["client"] = client.strip() if client and client.strip() else "Sin cliente"
