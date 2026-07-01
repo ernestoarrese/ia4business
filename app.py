@@ -14,6 +14,7 @@ import csv
 from datetime import datetime
 from gate0.services.history_service import HistoryService
 from gate0.services.runtime_service import RuntimeService
+from gate0.services.zip_inventory_service import ZIPInventoryService
 
 app = FastAPI(title="Gate0 Packaging QA")
 
@@ -36,6 +37,7 @@ MANUAL_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 history_service = HistoryService(HISTORY_CSV)
 runtime_service = RuntimeService(UPLOADS_DIR, REPORTS_DIR, TEMP_DIR, TTL_SECONDS)
+zip_inventory_service = ZIPInventoryService()
 
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
 
@@ -60,87 +62,13 @@ FONT_EXTENSIONS = {".otf", ".ttf"}
 
 
 def safe_extract_zip(zip_path, extract_dir):
-    extract_dir.mkdir(parents=True, exist_ok=True)
-
-    with zipfile.ZipFile(zip_path, "r") as z:
-        for member in z.infolist():
-            member_path = Path(member.filename)
-
-            if member.is_dir():
-                continue
-
-            # Evitar path traversal
-            if member_path.is_absolute() or ".." in member_path.parts:
-                continue
-
-            target = extract_dir / member.filename
-            target.parent.mkdir(parents=True, exist_ok=True)
-
-            with z.open(member) as src, target.open("wb") as dst:
-                shutil.copyfileobj(src, dst)
-
+    return zip_inventory_service.safe_extract_zip(zip_path, extract_dir)
 
 def scan_intake_folder(folder):
-    analyzable = []
-    images = []
-    fonts = []
-    others = []
-
-    for path in folder.rglob("*"):
-        if not path.is_file():
-            continue
-
-        suffix = path.suffix.lower()
-        rel = str(path.relative_to(folder))
-
-        # Ignorar basura común de ZIP generado en Mac y archivos vacíos
-        if "__MACOSX" in path.parts:
-            continue
-
-        if path.name.startswith("._") or path.name == ".DS_Store":
-            continue
-
-        if path.stat().st_size == 0:
-            continue
-
-        item = {
-            "name": path.name,
-            "relative_path": rel,
-            "size_mb": round(path.stat().st_size / (1024 * 1024), 2),
-            "extension": suffix,
-        }
-
-        if suffix in ANALYZABLE_EXTENSIONS:
-            analyzable.append(item)
-        elif suffix in IMAGE_EXTENSIONS:
-            images.append(item)
-        elif suffix in FONT_EXTENSIONS:
-            fonts.append(item)
-        else:
-            others.append(item)
-
-    return {
-        "analyzable": sorted(analyzable, key=lambda x: x["relative_path"].lower()),
-        "images": images,
-        "fonts": fonts,
-        "others": others,
-    }
-
+    return zip_inventory_service.scan_folder(folder)
 
 def possible_duplicate_note(analyzable):
-    stems = {}
-    for item in analyzable:
-        stem = Path(item["name"]).stem.lower()
-        stems.setdefault(stem, []).append(item["name"])
-
-    duplicates = [names for names in stems.values() if len(names) > 1]
-
-    if not duplicates:
-        return ""
-
-    return "Hay archivos con nombres similares. Pueden corresponder al mismo diseño; selecciona solo la versión que deseas analizar."
-
-
+    return zip_inventory_service.possible_duplicate_note(analyzable)
 
 def render_zip_selection(session_id, client, inventory):
     analyzable = inventory.get("analyzable", [])
