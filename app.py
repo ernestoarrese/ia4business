@@ -12,6 +12,7 @@ import zipfile
 import html
 import csv
 from datetime import datetime
+from gate0.services.history_service import HistoryService
 
 app = FastAPI(title="Gate0 Packaging QA")
 
@@ -32,6 +33,7 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 MANUAL_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+history_service = HistoryService(HISTORY_CSV)
 
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
 
@@ -50,90 +52,10 @@ def cleanup_old_runtime_files():
 
 
 def append_analysis_history(data):
-    summary = data.get("readiness_summary", {})
-    assessment = data.get("readiness_assessment", {})
-    metrics = assessment.get("readiness_metrics", {})
-    top_risks = summary.get("top_risks", [])
-    top = top_risks[0] if top_risks else {}
-
-    top_risk = top.get("check", "")
-    top_risk_title = top.get("title") or top.get("check", "")
-    top_risk_severity = top.get("business_severity") or top.get("severity") or ""
-
-    file_exists = HISTORY_CSV.exists()
-
-    fieldnames = [
-        "timestamp",
-        "session_id",
-        "client",
-        "file",
-        "score",
-        "status",
-        "decision",
-        "critical_count",
-        "warning_count",
-        "info_count",
-        "top_risk",
-        "top_risk_title",
-        "top_risk_severity",
-        "analysis_duration_seconds",
-        "feedback_score",
-        "feedback_comment",
-    ]
-
-    with HISTORY_CSV.open("a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-
-        if not file_exists:
-            writer.writeheader()
-
-        writer.writerow({
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "session_id": data.get("session_id"),
-            "client": data.get("client"),
-            "file": data.get("file"),
-            "score": summary.get("score"),
-            "status": summary.get("status"),
-            "decision": summary.get("decision"),
-            "critical_count": metrics.get("critical_count", 0),
-            "warning_count": metrics.get("warning_count", 0),
-            "info_count": metrics.get("info_count", 0),
-            "top_risk": top_risk,
-            "top_risk_title": top_risk_title,
-            "top_risk_severity": top_risk_severity,
-            "analysis_duration_seconds": data.get("analysis_duration_seconds", ""),
-            "feedback_score": "",
-            "feedback_comment": "",
-        })
-
+    history_service.save_analysis(data)
 
 def update_feedback_history(session_id, feedback_score, feedback_comment):
-    if not HISTORY_CSV.exists():
-        return False
-
-    rows = []
-    updated = False
-
-    with HISTORY_CSV.open("r", newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames
-        for row in reader:
-            if row.get("session_id") == session_id:
-                row["feedback_score"] = feedback_score
-                row["feedback_comment"] = feedback_comment
-                updated = True
-            rows.append(row)
-
-    if not updated:
-        return False
-
-    with HISTORY_CSV.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-
-    return True
-
+    return history_service.update_feedback(session_id, feedback_score, feedback_comment)
 
 def session_paths(session_id):
     return {
