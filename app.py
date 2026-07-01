@@ -13,6 +13,7 @@ import html
 import csv
 from datetime import datetime
 from gate0.services.history_service import HistoryService
+from gate0.services.runtime_service import RuntimeService
 
 app = FastAPI(title="Gate0 Packaging QA")
 
@@ -34,22 +35,13 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 MANUAL_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 history_service = HistoryService(HISTORY_CSV)
+runtime_service = RuntimeService(UPLOADS_DIR, REPORTS_DIR, TEMP_DIR, TTL_SECONDS)
 
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
 
 
 def cleanup_old_runtime_files():
-    now = time.time()
-    for folder in [UPLOADS_DIR, REPORTS_DIR, TEMP_DIR]:
-        for path in folder.glob("*"):
-            try:
-                if path.is_file() and now - path.stat().st_mtime > TTL_SECONDS:
-                    path.unlink()
-            except Exception:
-                pass
-
-
-
+    runtime_service.cleanup_old_files()
 
 def append_analysis_history(data):
     history_service.save_analysis(data)
@@ -58,11 +50,7 @@ def update_feedback_history(session_id, feedback_score, feedback_comment):
     return history_service.update_feedback(session_id, feedback_score, feedback_comment)
 
 def session_paths(session_id):
-    return {
-        "pdf": UPLOADS_DIR / f"{session_id}.pdf",
-        "json": REPORTS_DIR / f"{session_id}.json",
-        "csv": REPORTS_DIR / f"{session_id}.csv",
-    }
+    return runtime_service.session_paths(session_id)
 
 
 
