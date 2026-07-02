@@ -285,6 +285,14 @@ def run_gate0_analysis(input_file_path, original_filename, client, session_id, i
 
     try:
         data = orchestrator.run(paths["pdf"])
+        print("\n================ SEPARATIONS RAW ================\n")
+
+        print(f"Cantidad: {len(data.get('separations', []))}")
+
+        for i, sep in enumerate(data.get("separations", []), start=1):
+            print(f"{i:02d} -> {repr(sep)}")
+
+        print("\n===============================================\n")
     except Exception as exc:
         return HTMLResponse(
             f"<h1>Error ejecutando Gate0</h1><pre>{exc}</pre>",
@@ -303,31 +311,8 @@ def run_gate0_analysis(input_file_path, original_filename, client, session_id, i
     data["analysis_duration_seconds"] = analysis_duration_seconds
     data["input_type"] = input_type
     data["files_detected"] = files_detected
-    separation_context = {}
-
-    for item in (
-        data.get("findings", [])
-        + data.get("readiness_summary", {}).get("top_risks", [])
-    ):
-        if item.get("check") == "SEPARATION_COUNT_RISK":
-            separation_context = item
-            break
-
     data["separation_summary"] = separation_intelligence_service.build_summary(
-        data.get("separations", []),
-        printable_separation_count=(
-            separation_context.get("printable_separation_count")
-            or data.get("printable_separation_count")
-            or data.get("number_of_separations")
-        ),
-        process_count=(
-            separation_context.get("process_count")
-            or data.get("process_count")
-        ),
-        process_count_source=(
-            separation_context.get("process_count_source")
-            or data.get("process_count_source")
-        ),
+        data.get("separations", [])
     )
 
     with paths["json"].open("w", encoding="utf-8") as f:

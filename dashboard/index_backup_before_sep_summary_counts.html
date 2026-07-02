@@ -309,7 +309,6 @@ function normalize(data){
 }
 
 
-
 function renderSeparations(data){
   const box=$("separationSummary");
   if(!box)return;
@@ -323,16 +322,6 @@ function renderSeparations(data){
     return;
   }
 
-  const detected=summary.detected_total ?? items.length;
-  const operational=summary.operational_total ?? detected;
-  const source=summary.process_count_source || "No informado";
-
-  const header=`
-    <div class="sep-warning" style="background:#f8fafc;color:#475467;border-color:#e5e7eb">
-      Detectadas por parser: <b>${esc(detected)}</b> · Conteo operativo: <b>${esc(operational)}</b> · Base proceso: <b>${esc(source)}</b>
-    </div>
-  `;
-
   const rows=items.map(i=>`
     <div class="sep-item">
       <div class="sep-name">${esc(i.name)}</div>
@@ -344,9 +333,13 @@ function renderSeparations(data){
     <div class="sep-warning">${esc(w.message)}</div>
   `).join("");
 
+  const processNote=summary.process_confirmed
+    ? ''
+    : '<div class="sep-warning">No se confirmaron colores proceso en las separaciones detectadas. Gate0 no asumirá CMYK si el archivo no lo reporta explícitamente.</div>';
+
   box.innerHTML=`
-    ${header}
-    <div class="sep-list" style="margin-top:10px">${rows}</div>
+    <div class="sep-list">${rows}</div>
+    ${processNote}
     ${warnHtml}
   `;
 }
