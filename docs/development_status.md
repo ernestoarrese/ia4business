@@ -301,3 +301,11 @@ Nunca una sin la otra.
 - No mueve lógica al motor todavía; es una mejora de explicación y usabilidad.
 
 ---
+
+## Check Intelligence Matrix v2
+
+- Se consolidó docs/check_intelligence_matrix.md como matriz maestra de inteligencia por check.
+- Incluye criterio, contexto operativo, impacto, acción recomendada, fix type, limitaciones actuales y futuro.
+- Mantiene la inteligencia del producto documentada antes de moverla al motor.
+
+---
