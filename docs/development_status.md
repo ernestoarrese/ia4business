@@ -283,3 +283,12 @@ Nunca una sin la otra.
 
 ---
 
+
+## Architecture Layers v1
+
+- Se creó docs/architecture_layers_v1.md.
+- Documenta arquitectura actual, arquitectura objetivo y criterio para futuro orchestrator.
+- Confirma que Gate0 ya opera por capas, aunque el flujo principal siga coordinado desde analyze_pdf().
+- Define que no se debe refactorizar hacia orchestrator hasta que exista complejidad real de producto.
+
+---
