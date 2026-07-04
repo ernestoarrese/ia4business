@@ -1,0 +1,20 @@
+{
+  "profile_name": "flexo_pet_bopp_default",
+  "process": "flexo",
+  "substrate_family": "PET_BOPP",
+  "tac": {
+    "max_tac_percent": 280
+  },
+  "small_text": {
+    "enabled": true,
+    "warning_threshold_pt": 5.0,
+    "critical_threshold_pt": 4.0,
+    "future_rules": {
+      "positive_min_pt": 4.0,
+      "negative_min_pt": 5.0,
+      "multicolor_min_pt": 6.0,
+      "active_in_v1": false,
+      "note": "Reservado para Small Text Intelligence v2 cuando Gate0 pueda clasificar positivo, negativo y multitinta con evidencia confiable."
+    }
+  }
+}

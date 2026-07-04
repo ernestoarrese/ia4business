@@ -83,6 +83,18 @@ Siempre se priorizará Bash sobre edición manual para reducir errores.
 
 ---
 
+## Operational Profile
+
+- `profiles/flexo_pet_bopp_default.json`
+- Funciona como semilla operativa de futura Knowledge Layer.
+- Contiene límites configurables de proceso.
+- Small Text v1.1 usa umbrales desde profile:
+    - warning_threshold_pt
+    - critical_threshold_pt
+- Reglas positivo / negativo / multitinta quedan reservadas para Small Text v2.
+
+---
+
 ## Domain Models
 
 - InspectionResult
@@ -129,6 +141,7 @@ Siempre se priorizará Bash sobre edición manual para reducir errores.
 ### Text Intelligence
 
 - Small Text Intelligence v1
+- Small Text thresholds by profile v1.1
 - Detección de texto vivo menor a 5 pt
 - Clasificación inicial:
     - < 4 pt: CRITICAL

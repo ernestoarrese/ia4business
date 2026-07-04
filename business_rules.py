@@ -114,21 +114,31 @@ def evaluate_low_image_resolution(finding, profile):
 
 
 def evaluate_small_text_risk(finding, profile):
+    small_text_profile = profile.get("small_text", {}) if isinstance(profile, dict) else {}
+
+    enabled = small_text_profile.get("enabled", True)
+    warning_threshold = float(small_text_profile.get("warning_threshold_pt", 5.0))
+    critical_threshold = float(small_text_profile.get("critical_threshold_pt", 4.0))
+
     size_pt = float(finding.get("font_size_pt") or 0)
     height_mm = float(finding.get("text_height_mm") or 0)
     sample = finding.get("sample_text") or finding.get("value") or ""
 
-    if size_pt <= 0:
+    if not enabled:
+        sev = "PASS"
+    elif size_pt <= 0:
         sev = "INFO"
-    elif size_pt < 4:
+    elif size_pt < critical_threshold:
         sev = "CRITICAL"
-    elif size_pt < 5:
+    elif size_pt < warning_threshold:
         sev = "WARNING"
     else:
         sev = "PASS"
 
     reason = (
         f"Texto vivo pequeño detectado: {size_pt:.2f} pt / {height_mm:.2f} mm aprox. "
+        f"Límites del perfil: WARNING < {warning_threshold:.2f} pt, "
+        f"CRITICAL < {critical_threshold:.2f} pt. "
         f"Muestra: '{sample[:40]}'."
     )
 
@@ -138,7 +148,14 @@ def evaluate_small_text_risk(finding, profile):
     )
 
     p, w = severity_meta(sev, {"CRITICAL": 35, "WARNING": 18, "INFO": 1})
-    return apply_business_fields(finding, sev, "Texto / Legibilidad", reason, p, action, w)
+    result = apply_business_fields(finding, sev, "Texto / Legibilidad", reason, p, action, w)
+
+    result["profile_warning_threshold_pt"] = warning_threshold
+    result["profile_critical_threshold_pt"] = critical_threshold
+    result["profile_small_text_enabled"] = enabled
+
+    return result
+
 
 def evaluate_font_not_embedded(finding, profile):
     return apply_business_fields(

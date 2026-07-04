@@ -75,3 +75,35 @@ def test_small_text_expert_comment():
 
     assert insight["evidence"]["rule_applied"] == "SMALL_TEXT_RISK"
     assert "legibilidad" in insight["brief_comment"].lower()
+
+
+def test_small_text_business_rule_uses_profile_thresholds():
+    finding = {
+        "check": "SMALL_TEXT_RISK",
+        "page": 1,
+        "font_size_pt": 4.5,
+        "text_height_mm": 1.59,
+        "sample_text": "small legal text",
+    }
+
+    default_result = enrich_finding(finding, profile={
+        "small_text": {
+            "enabled": True,
+            "warning_threshold_pt": 5.0,
+            "critical_threshold_pt": 4.0
+        }
+    })
+
+    stricter_result = enrich_finding(finding, profile={
+        "small_text": {
+            "enabled": True,
+            "warning_threshold_pt": 5.5,
+            "critical_threshold_pt": 4.8
+        }
+    })
+
+    assert default_result["business_severity"] == "WARNING"
+    assert stricter_result["business_severity"] == "CRITICAL"
+    assert stricter_result["profile_warning_threshold_pt"] == 5.5
+    assert stricter_result["profile_critical_threshold_pt"] == 4.8
+
