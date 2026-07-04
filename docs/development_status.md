@@ -380,3 +380,18 @@ Nunca una sin la otra.
 - No se reemplazaron comentarios expertos existentes.
 
 ---
+
+
+## Spot Color Intelligence Consolidation v1
+
+- Se consolidó `SPOT_COLOR_RISK` como check de inteligencia protegida.
+- `check_intelligence.py` conserva:
+    - white ink / múltiples blancos
+    - nombres genéricos
+    - duplicidades de nomenclatura
+    - separaciones técnicas
+    - racionalización de spots
+    - limitación explícita de v1
+- No se reemplazaron comentarios expertos existentes.
+
+---
