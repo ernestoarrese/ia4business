@@ -496,14 +496,28 @@ async def compare_candidate(
 
     result = comparison_service.compare_inspection_results(left, right)
 
+    status_class = {
+        "OK": "ok",
+        "REVIEW_REQUIRED": "review",
+        "HIGH_RISK": "risk",
+    }.get(result.overall_status, "review")
+
     rows = ""
     for check in result.checks:
+        row_class = {
+            "OK": "ok",
+            "WARNING": "review",
+            "CRITICAL": "risk",
+        }.get(str(check.get("status", "")), "review")
+
         rows += f"""
         <tr>
+          <td><b>{html.escape(str(check.get("category", "")))}</b></td>
           <td>{html.escape(str(check.get("name", "")))}</td>
-          <td>{html.escape(str(check.get("status", "")))}</td>
+          <td><span class="pill {row_class}">{html.escape(str(check.get("status", "")))}</span></td>
           <td>{html.escape(str(check.get("left", "")))}</td>
           <td>{html.escape(str(check.get("right", "")))}</td>
+          <td>{html.escape(str(check.get("message", "")))}</td>
         </tr>
         """
 
@@ -518,13 +532,27 @@ async def compare_candidate(
 <title>Artwork Consistency</title>
 <style>
 body{{margin:0;min-height:100vh;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f6f7fb;color:#0f172a;display:grid;place-items:center}}
-.card{{width:min(980px,94vw);background:white;border:1px solid #e5e7eb;border-radius:28px;padding:32px;box-shadow:0 24px 70px rgba(15,23,42,.10)}}
+.card{{width:min(1120px,94vw);background:white;border:1px solid #e5e7eb;border-radius:28px;padding:32px;box-shadow:0 24px 70px rgba(15,23,42,.10)}}
 h1{{font-size:34px;margin:0 0 8px;letter-spacing:-.05em}}
-.score{{font-size:54px;font-weight:950;margin:16px 0}}
-.badge{{display:inline-block;border-radius:999px;padding:8px 12px;background:#eef2ff;color:#3730a3;font-weight:900}}
-table{{width:100%;border-collapse:collapse;margin-top:18px}}
+.subtitle{{color:#667085;margin:0 0 18px}}
+.score{{font-size:54px;font-weight:950;margin:8px 0 0}}
+.badge{{display:inline-block;border-radius:999px;padding:8px 12px;font-weight:950}}
+.badge.ok{{background:#ecfdf3;color:#027a48}}
+.badge.review{{background:#fffbeb;color:#92400e}}
+.badge.risk{{background:#fef3f2;color:#b42318}}
+.decision{{margin-top:18px;padding:18px;border-radius:18px;background:#f8fafc;border:1px solid #e5e7eb}}
+.decision b{{display:block;font-size:20px;margin-bottom:6px}}
+.grid{{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}}
+.metric{{border:1px solid #e5e7eb;border-radius:18px;padding:16px;background:#fff}}
+.metric small{{display:block;color:#667085;font-weight:800;text-transform:uppercase;letter-spacing:.08em}}
+.metric span{{display:block;font-size:24px;font-weight:950;margin-top:4px}}
+table{{width:100%;border-collapse:collapse;margin-top:22px}}
 td,th{{border-bottom:1px solid #e5e7eb;padding:12px;text-align:left;font-size:14px;vertical-align:top}}
 th{{color:#667085;text-transform:uppercase;font-size:12px;letter-spacing:.08em}}
+.pill{{display:inline-block;border-radius:999px;padding:5px 9px;font-weight:950;font-size:12px}}
+.pill.ok{{background:#ecfdf3;color:#027a48}}
+.pill.review{{background:#fffbeb;color:#92400e}}
+.pill.risk{{background:#fef3f2;color:#b42318}}
 .warning{{background:#fffbeb;border:1px solid #fde68a;border-radius:16px;padding:14px;margin-top:18px;color:#92400e}}
 a{{display:inline-block;margin-top:20px;color:#1d4ed8;font-weight:900;text-decoration:none}}
 </style>
@@ -532,18 +560,37 @@ a{{display:inline-block;margin-top:20px;color:#1d4ed8;font-weight:900;text-decor
 <body>
 <main class="card">
   <h1>Artwork Consistency</h1>
-  <p>Comparación estructural inicial entre AI y PDF. No incluye comparación visual todavía.</p>
+  <p class="subtitle">Comparación estructural entre AI y PDF. No incluye comparación visual píxel a píxel todavía.</p>
 
-  <div class="badge">{html.escape(result.overall_status)}</div>
+  <span class="badge {status_class}">{html.escape(result.overall_status)}</span>
   <div class="score">{result.score}/100</div>
+
+  <section class="decision">
+    <b>{html.escape(result.decision)}</b>
+    <p>{html.escape(result.summary)}</p>
+    <p><b>Recomendación:</b> {html.escape(result.recommendation)}</p>
+  </section>
+
+  <section class="grid">
+    <div class="metric">
+      <small>AI inspeccionado</small>
+      <span>{html.escape(str(result.left_file))}</span>
+    </div>
+    <div class="metric">
+      <small>PDF inspeccionado</small>
+      <span>{html.escape(str(result.right_file))}</span>
+    </div>
+  </section>
 
   <table>
     <thead>
       <tr>
+        <th>Categoría</th>
         <th>Check</th>
         <th>Estado</th>
         <th>AI</th>
         <th>PDF</th>
+        <th>Lectura preprensa</th>
       </tr>
     </thead>
     <tbody>{rows}</tbody>
@@ -559,6 +606,7 @@ a{{display:inline-block;margin-top:20px;color:#1d4ed8;font-weight:900;text-decor
 </body>
 </html>
 """)
+
 
 @app.post("/analyze-selected")
 async def analyze_selected(

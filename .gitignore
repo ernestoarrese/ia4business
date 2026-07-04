@@ -147,3 +147,7 @@ data/history/analysis_history.csv
 
 # Local backups
 backups/
+
+# Local development backups
+backups/*_before_*/
+backups/*_status_review/
