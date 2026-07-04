@@ -438,3 +438,17 @@ Nunca una sin la otra.
 - No se reemplazaron comentarios expertos existentes.
 
 ---
+
+
+## Font Intelligence Consolidation v1
+
+- Se consolidó `FONT_NOT_EMBEDDED` como check de inteligencia protegida.
+- `check_intelligence.py` conserva:
+    - riesgo de sustitución tipográfica
+    - impacto en layout, legales y apariencia
+    - recomendación de incrustar o convertir a curvas
+    - atención especial a textos legales/obligatorios
+    - limitación explícita de v1
+- No se reemplazaron comentarios expertos existentes.
+
+---

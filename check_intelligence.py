@@ -50,11 +50,14 @@ CHECK_INTELLIGENCE = {
     },
     "FONT_NOT_EMBEDDED": {
         "criteria": "Detecta fuentes no embebidas en el PDF.",
-        "operational_context": "Una fuente no embebida puede sustituirse al abrir, procesar o ripear el archivo.",
-        "possible_impact": "Cambio tipográfico, texto corrido, error de layout o diferencia frente al arte aprobado.",
+        "operational_context": "Una fuente no embebida puede sustituirse al abrir, editar, procesar, ripear o convertir el archivo, alterando textos, medidas, legales y apariencia.",
+        "possible_impact": "Cambio tipográfico, texto corrido, variación de layout, pérdida de caracteres especiales, incumplimiento legal, diferencia frente al arte aprobado o rechazo de calidad.",
         "fix_type": "manual",
-        "current_limitation": "Gate0 no corrige ni convierte fuentes automáticamente.",
-        "future_evolution": "Guía asistida y validación post-conversión.",
+        "current_limitation": "Gate0 no incrusta ni convierte fuentes automáticamente. Solo alerta el riesgo y recomienda corrección antes de liberar.",
+        "future_evolution": "Guía asistida de corrección, validación post-conversión a curvas y comparación visual antes/después.",
+        "prepress_guidance": "Incrustar fuentes en el PDF o convertir texto a curvas antes de liberar a producción.",
+        "legal_text_guidance": "Prestar especial atención si la fuente afecta textos legales, ingredientes, advertencias, códigos, claims o información obligatoria.",
+        "do_not_claim": "Font v1 detecta riesgo de fuente no embebida; no garantiza que el texto haya cambiado ni corrige la fuente automáticamente.",
     },
     "HIGH_TAC_RISK": {
         "criteria": "Evalúa cobertura total de tinta contra el límite configurado en el perfil operativo.",
