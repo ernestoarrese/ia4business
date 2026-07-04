@@ -423,3 +423,18 @@ Nunca una sin la otra.
 - No se reemplazaron comentarios expertos existentes.
 
 ---
+
+
+## Separation Count Intelligence Consolidation v1
+
+- Se consolidó `SEPARATION_COUNT_RISK` como check de inteligencia protegida.
+- `check_intelligence.py` conserva:
+    - criterio por perfil operativo
+    - complejidad por número de separaciones imprimibles
+    - validación de capacidad de prensa
+    - racionalización de spots
+    - diferencia entre separaciones imprimibles y técnicas
+    - limitación explícita de v1
+- No se reemplazaron comentarios expertos existentes.
+
+---
