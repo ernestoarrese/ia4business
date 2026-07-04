@@ -3,44 +3,91 @@ import re
 from pathlib import Path
 
 
+def default_operational_profile(profile_path="profiles/flexo_pet_bopp_default.json"):
+    """
+    Fallback explícito cuando no existe archivo de perfil.
+
+    Esto evita que Gate0 opere con supuestos invisibles.
+    El objetivo comercial es que todo análisis indique siempre contra qué estándar fue evaluado.
+    """
+    return {
+        "profile_name": "flexo_pet_bopp_default",
+        "profile_version": "fallback",
+        "profile_status": "FALLBACK_DEFAULT",
+        "profile_source": str(profile_path),
+        "profile_file_found": False,
+        "process": "flexo",
+        "substrate_family": "PET_BOPP",
+        "description": "Fallback interno. Crear o revisar profiles/flexo_pet_bopp_default.json para usar conocimiento operativo versionado.",
+        "tac": {
+            "max_tac_percent": 280
+        },
+        "image_resolution": {
+            "minimum_dpi": 250,
+            "recommended_dpi": 300
+        },
+        "separations": {
+            "normal_max_printable": 8,
+            "info_max_printable": 10,
+            "warning_max_printable": 12,
+            "critical_above_printable": 12
+        },
+        "small_text": {
+            "enabled": True,
+            "warning_threshold_pt": 5.0,
+            "critical_threshold_pt": 4.0
+        }
+    }
+
+
 def load_profile(profile_path="profiles/flexo_pet_bopp_default.json"):
     path = Path(profile_path)
-    if path.exists():
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+
+    if not path.exists():
+        return default_operational_profile(profile_path)
+
+    try:
+        profile = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        profile = default_operational_profile(profile_path)
+        profile["profile_status"] = "FALLBACK_INVALID_JSON"
+        profile["profile_file_found"] = True
+        return profile
+
+    profile.setdefault("profile_name", path.stem)
+    profile.setdefault("profile_version", "unknown")
+    profile.setdefault("profile_status", "FILE_LOADED")
+    profile.setdefault("process", "unknown")
+    profile.setdefault("substrate_family", "unknown")
+    profile["profile_source"] = str(path)
+    profile["profile_file_found"] = True
+
+    return profile
 
 
-def upgrade_severity(severity):
-    levels = ["PASS", "INFO", "WARNING", "CRITICAL"]
-    if severity not in levels:
-        return severity
-    return levels[min(levels.index(severity) + 1, len(levels) - 1)]
+def summarize_operational_profile(profile):
+    small_text = profile.get("small_text", {}) if isinstance(profile, dict) else {}
+    tac = profile.get("tac", {}) if isinstance(profile, dict) else {}
+    image_resolution = profile.get("image_resolution", {}) if isinstance(profile, dict) else {}
+    separations = profile.get("separations", {}) if isinstance(profile, dict) else {}
 
-
-def downgrade_severity(severity):
-    levels = ["PASS", "INFO", "WARNING", "CRITICAL"]
-    if severity not in levels:
-        return severity
-    return levels[max(levels.index(severity) - 1, 0)]
-
-
-def extract_dpi_value(finding):
-    if finding.get("effective_dpi") is not None:
-        return float(finding["effective_dpi"])
-    value = str(finding.get("value", ""))
-    nums = re.findall(r"\d+(?:\.\d+)?", value)
-    return float(min(float(n) for n in nums)) if nums else 0.0
-
-
-def apply_business_fields(finding, severity, risk_area, risk_reason, priority, action, score_weight):
-    finding["business_severity"] = severity
-    finding["risk_area"] = risk_area
-    finding["risk_reason"] = risk_reason
-    finding["priority"] = priority
-    finding["action"] = action
-    finding["score_weight"] = score_weight
-    return finding
+    return {
+        "profile_name": profile.get("profile_name"),
+        "profile_version": profile.get("profile_version"),
+        "profile_status": profile.get("profile_status"),
+        "profile_source": profile.get("profile_source"),
+        "profile_file_found": profile.get("profile_file_found"),
+        "process": profile.get("process"),
+        "substrate_family": profile.get("substrate_family"),
+        "tac_max_percent": tac.get("max_tac_percent"),
+        "small_text_warning_threshold_pt": small_text.get("warning_threshold_pt"),
+        "small_text_critical_threshold_pt": small_text.get("critical_threshold_pt"),
+        "image_minimum_dpi": image_resolution.get("minimum_dpi"),
+        "image_recommended_dpi": image_resolution.get("recommended_dpi"),
+        "separation_normal_max_printable": separations.get("normal_max_printable"),
+        "separation_warning_max_printable": separations.get("warning_max_printable"),
+        "separation_critical_above_printable": separations.get("critical_above_printable")
+    }
 
 
 def severity_meta(severity, weights):
@@ -52,6 +99,87 @@ def severity_meta(severity, weights):
         return 3, weights.get("INFO", 1)
     return 4, 0
 
+
+
+def severity_meta(severity, score_weight_map=None):
+    """
+    Devuelve prioridad y peso de score según severidad de negocio.
+    """
+    severity = str(severity or "INFO").upper()
+    score_weight_map = score_weight_map or {}
+
+    priority_map = {
+        "CRITICAL": 1,
+        "WARNING": 2,
+        "INFO": 3,
+        "PASS": 99,
+    }
+
+    return (
+        priority_map.get(severity, 3),
+        score_weight_map.get(severity, 0)
+    )
+
+
+def upgrade_severity(severity):
+    """
+    Eleva severidad un nivel para objetos críticos como logos, producto o información relevante.
+    """
+    severity = str(severity or "INFO").upper()
+
+    if severity == "INFO":
+        return "WARNING"
+    if severity == "WARNING":
+        return "CRITICAL"
+
+    return severity
+
+
+def apply_business_fields(finding, severity, risk_area, risk_reason, priority, action, score_weight):
+    """
+    Agrega campos de negocio estándar a un hallazgo técnico.
+    """
+    finding["business_severity"] = severity
+    finding["risk_area"] = risk_area
+    finding["risk_reason"] = risk_reason
+    finding["priority"] = priority
+    finding["action"] = action
+    finding["score_weight"] = score_weight
+
+    return finding
+
+
+def extract_dpi_value(value):
+    """
+    Extrae un valor de DPI desde dict, número o texto.
+    """
+    import re
+
+    if isinstance(value, dict):
+        for key in ["effective_dpi", "dpi", "value", "detail"]:
+            if key in value:
+                extracted = extract_dpi_value(value.get(key))
+                if extracted is not None:
+                    return extracted
+        return None
+
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    if value is None:
+        return None
+
+    text_value = str(value)
+
+    match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*dpi", text_value, flags=re.IGNORECASE)
+    if match:
+        return float(match.group(1))
+
+    match = re.search(r"([0-9]+(?:\.[0-9]+)?)", text_value)
+    if match:
+        return float(match.group(1))
+
+    return None
 
 def evaluate_rgb_object(finding, profile):
     area = float(finding.get("object_area_percent") or 0)
@@ -366,16 +494,25 @@ def define_gate_status(enriched_findings, risk_score):
 
 def build_business_assessment(findings, profile_path="profiles/flexo_pet_bopp_default.json"):
     profile = load_profile(profile_path)
+    operational_profile = summarize_operational_profile(profile)
+
     enriched = [enrich_finding(f, profile) for f in findings]
     enriched = sorted(enriched, key=lambda x: x.get("priority", 99))
     risk_score = calculate_risk_score(enriched)
 
     return {
         "profile_name": profile.get("profile_name", "flexo_pet_bopp_default"),
+        "profile_version": profile.get("profile_version", "unknown"),
+        "profile_status": profile.get("profile_status", "unknown"),
+        "profile_source": profile.get("profile_source", profile_path),
+        "profile_file_found": profile.get("profile_file_found", False),
         "process": profile.get("process", "flexo"),
+        "substrate_family": profile.get("substrate_family", "unknown"),
+        "operational_profile": operational_profile,
         "gate_status": define_gate_status(enriched, risk_score),
         "risk_score": risk_score,
         "risk_level": define_risk_level(risk_score),
         "total_findings": len(enriched),
         "priority_findings": enriched
     }
+

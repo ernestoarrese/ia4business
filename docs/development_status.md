@@ -83,6 +83,16 @@ Siempre se priorizará Bash sobre edición manual para reducir errores.
 
 ---
 
+## Profile Hardening v1
+
+- Gate0 expone el perfil operativo usado en cada análisis.
+- `business_assessment.operational_profile` contiene thresholds clave.
+- El reporte principal incluye `operational_profile`.
+- Si el archivo de profile no existe, Gate0 usa fallback explícito y trazable.
+- Esta capacidad fortalece la confianza comercial sin crear una Knowledge Layer formal todavía.
+
+---
+
 ## Operational Profile
 
 - `profiles/flexo_pet_bopp_default.json`

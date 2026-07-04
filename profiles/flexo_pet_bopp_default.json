@@ -1,9 +1,22 @@
 {
   "profile_name": "flexo_pet_bopp_default",
+  "profile_version": "1.0",
+  "profile_status": "MVP_DEFAULT",
   "process": "flexo",
   "substrate_family": "PET_BOPP",
+  "description": "Perfil operativo inicial para Gate0 en packaging flexible flexo sobre PET/BOPP. Es una semilla de la futura Knowledge Layer.",
   "tac": {
     "max_tac_percent": 280
+  },
+  "image_resolution": {
+    "minimum_dpi": 250,
+    "recommended_dpi": 300
+  },
+  "separations": {
+    "normal_max_printable": 8,
+    "info_max_printable": 10,
+    "warning_max_printable": 12,
+    "critical_above_printable": 12
   },
   "small_text": {
     "enabled": true,

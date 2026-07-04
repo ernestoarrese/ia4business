@@ -868,6 +868,7 @@ def build_report(pdf_path):
         "page_boxes": page_boxes,
         "pdf_structure": pdf_structure,
         "live_fonts": live_fonts,
+        "operational_profile": business_assessment.get("operational_profile", {}),
         "business_assessment": business_assessment,
         "readiness_assessment": readiness_assessment,
         "readiness_summary": readiness_summary,
