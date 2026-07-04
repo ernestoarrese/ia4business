@@ -10,7 +10,7 @@ import fitz
 from context_engine import enrich_context
 from business_rules import build_business_assessment
 from readiness_engine import build_readiness_assessment
-from readiness_summary import build_readiness_summary
+from readiness_summary import build_readiness_summary, build_fix_plan
 from config.spot_utils import build_spot_inventory
 from expert_comment_engine import enrich_report_with_expert_insights
 from risk_evidence_engine import enrich_report_with_risk_evidence
@@ -1011,6 +1011,8 @@ def build_report(pdf_path):
         priority_findings
     )
 
+    fix_plan = build_fix_plan(priority_findings)
+
     gate_status = calculate_gate_status(priority_findings)
 
     report_data = {
@@ -1027,6 +1029,7 @@ def build_report(pdf_path):
         "business_assessment": business_assessment,
         "readiness_assessment": readiness_assessment,
         "readiness_summary": readiness_summary,
+        "fix_plan": fix_plan,
         "findings": context_findings
     }
 

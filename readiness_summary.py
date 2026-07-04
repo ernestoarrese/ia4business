@@ -262,3 +262,98 @@ def build_readiness_summary(readiness_assessment, findings):
         "top_risks": top_risks
     }
 
+
+def classify_fix_type(check):
+    autofix_candidates = {
+        "RGB_OBJECT",
+        "LOW_IMAGE_RESOLUTION",
+        "SMALL_TEXT_RISK",
+        "BARCODE_RISK",
+        "SPOT_COLOR_RISK",
+        "SEPARATION_COUNT_RISK",
+    }
+
+    manual_required = {
+        "FONT_NOT_EMBEDDED",
+        "PDF_STRUCTURE_RISK",
+    }
+
+    if check in manual_required:
+        return "manual"
+
+    if check in autofix_candidates:
+        return "assisted"
+
+    return "manual"
+
+
+def build_fix_plan(findings, limit=6):
+    """
+    Fix Plan v1:
+    Ordena acciones recomendadas desde los findings actuales.
+    No ejecuta correcciones.
+    No promete autofix.
+    """
+    if not findings:
+        return []
+
+    severity_rank = {
+        "CRITICAL": 4,
+        "HIGH": 4,
+        "WARNING": 3,
+        "MEDIUM": 3,
+        "INFO": 2,
+        "LOW": 1,
+        "PASS": 0,
+    }
+
+    actionable = []
+
+    for finding in findings:
+        severity = str(
+            finding.get("business_severity")
+            or finding.get("severity")
+            or "INFO"
+        ).upper()
+
+        if severity in {"PASS", "LOW", "INFO"}:
+            continue
+
+        check = finding.get("check", "UNKNOWN_CHECK")
+
+        item = {
+            "priority": finding.get("priority", 99),
+            "check": check,
+            "severity": severity,
+            "page": finding.get("page"),
+            "problem": (
+                finding.get("risk_reason")
+                or finding.get("detail")
+                or "Hallazgo requiere revisión."
+            ),
+            "recommended_action": (
+                finding.get("action")
+                or finding.get("recommendation")
+                or "Revisar antes de liberar."
+            ),
+            "fix_type": classify_fix_type(check),
+            "status": "pending",
+            "source": "finding",
+        }
+
+        actionable.append(item)
+
+    actionable = sorted(
+        actionable,
+        key=lambda x: (
+            x.get("priority", 99),
+            -severity_rank.get(x.get("severity", "INFO"), 1),
+            x.get("check", ""),
+        ),
+    )
+
+    for idx, item in enumerate(actionable[:limit], start=1):
+        item["step"] = idx
+
+    return actionable[:limit]
+
