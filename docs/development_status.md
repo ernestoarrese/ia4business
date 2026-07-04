@@ -273,3 +273,13 @@ Cada funcionalidad nueva debe dejar:
 - una mejora arquitectónica mínima.
 
 Nunca una sin la otra.
+
+## Check Intelligence Matrix v1
+
+- Se creó `docs/check_intelligence_matrix.md`.
+- Define criterio, contexto operativo, acción recomendada, fix type, limitación actual y futuro por check.
+- No reemplaza todavía la lógica del motor.
+- Sirve como referencia de producto para evolucionar Gate0 hacia fix asistido y futuro autofix.
+
+---
+
