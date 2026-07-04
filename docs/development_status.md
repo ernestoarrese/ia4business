@@ -338,3 +338,12 @@ Nunca una sin la otra.
 - Mejora la confianza del usuario en el diagnóstico sin modificar el motor.
 
 ---
+
+## Intelligence Reconciliation v1
+
+- Se creó docs/audits/intelligence_reconciliation_v1.md.
+- Compara business_rules.py, expert_comment_engine.py, check_intelligence.py, check_intelligence_matrix.md y dashboard.
+- Objetivo: proteger la inteligencia ya trabajada antes de consolidar una fuente maestra.
+- No modifica lógica ni comentarios expertos.
+
+---
