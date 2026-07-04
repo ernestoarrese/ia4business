@@ -409,3 +409,17 @@ Nunca una sin la otra.
 - No se reemplazaron comentarios expertos existentes.
 
 ---
+
+
+## Overprint Intelligence Consolidation v1
+
+- Se consolidó `OVERPRINT_RISK` como check de inteligencia protegida.
+- `check_intelligence.py` conserva:
+    - sobreimpresión intencional vs error
+    - riesgo especial de blanco + overprint
+    - necesidad de validación visual y separaciones
+    - limitación explícita de detección parcial v1
+    - no prometer corrección automática
+- No se reemplazaron comentarios expertos existentes.
+
+---
