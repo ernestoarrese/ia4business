@@ -452,3 +452,19 @@ Nunca una sin la otra.
 - No se reemplazaron comentarios expertos existentes.
 
 ---
+
+
+## PDF Structure Intelligence Consolidation v1
+
+- Se consolidó `PDF_STRUCTURE_RISK` como check de inteligencia protegida.
+- `check_intelligence.py` conserva:
+    - páginas vacías
+    - tamaño de archivo
+    - cantidad de objetos/imágenes
+    - complejidad estructural
+    - impacto en RIP, trapping, imposición y automatización
+    - recomendación de optimizar/reconstruir/solicitar nuevo archivo
+    - limitación explícita de v1
+- No se reemplazaron comentarios expertos existentes.
+
+---

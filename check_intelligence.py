@@ -110,12 +110,16 @@ CHECK_INTELLIGENCE = {
         "do_not_claim": "Separation Count v1 alerta complejidad por cantidad de separaciones; no decide automáticamente la estrategia de reducción ni garantiza producibilidad.",
     },
     "PDF_STRUCTURE_RISK": {
-        "criteria": "Evalúa páginas vacías, tamaño de archivo, objetos, imágenes y complejidad estructural.",
-        "operational_context": "PDFs vacíos, pesados o complejos pueden fallar en RIP, trapping, imposición o edición.",
-        "possible_impact": "Error de procesamiento, lentitud, archivo corrupto o necesidad de reconstrucción.",
+        "criteria": "Evalúa páginas vacías, tamaño de archivo, cantidad de objetos, imágenes y complejidad estructural del PDF.",
+        "operational_context": "Un PDF vacío, pesado, corrupto o excesivamente complejo puede fallar durante RIP, trapping, imposición, edición, comparación o automatización.",
+        "possible_impact": "Lentitud, error de procesamiento, archivo no procesable, pérdida de elementos, fallo en RIP, bloqueo del flujo o necesidad de reconstruir el arte.",
         "fix_type": "manual",
-        "current_limitation": "No repara estructura PDF automáticamente.",
-        "future_evolution": "Limpieza estructural asistida y validación antes/después.",
+        "current_limitation": "Gate0 no repara estructura PDF automáticamente. Solo alerta complejidad, páginas vacías o señales de riesgo estructural.",
+        "future_evolution": "Limpieza estructural asistida, validación antes/después, reducción de complejidad y clasificación de objetos problemáticos.",
+        "empty_page_guidance": "Si existen páginas vacías, validar si son intencionales. Una página vacía no esperada puede indicar exportación incorrecta o archivo incompleto.",
+        "complexity_guidance": "Si el archivo tiene demasiados objetos, imágenes o peso excesivo, revisar optimización antes de procesos pesados como RIP, trapping o imposición.",
+        "workflow_guidance": "Cuando el PDF sea estructuralmente crítico, conviene reconstruir, optimizar o solicitar nuevo archivo antes de liberar a producción.",
+        "do_not_claim": "PDF Structure v1 alerta riesgo estructural; no corrige, optimiza ni garantiza integridad completa del PDF.",
     },
 }
 
