@@ -29,5 +29,15 @@
       "active_in_v1": false,
       "note": "Reservado para Small Text Intelligence v2 cuando Gate0 pueda clasificar positivo, negativo y multitinta con evidencia confiable."
     }
+  },
+  "barcode": {
+    "enabled": true,
+    "minimum_image_dpi": 300,
+    "critical_image_dpi": 200,
+    "candidate_detection_v1": {
+      "enabled": true,
+      "method": "image_geometry_and_effective_dpi",
+      "note": "Barcode Intelligence v1 detecta candidatos por geometría de imagen y DPI. No decodifica ni valida GS1."
+    }
   }
 }

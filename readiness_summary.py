@@ -149,6 +149,7 @@ def get_simple_risk(top_risks):
     simple_map = {
         "RGB_OBJECT": "Puede generar variación de color.",
         "LOW_IMAGE_RESOLUTION": "Puede generar pérdida visible de calidad.",
+        "BARCODE_RISK": "Puede generar problemas de lectura o rechazo de calidad.",
         "FONT_NOT_EMBEDDED": "Puede modificar texto o apariencia aprobada.",
         "SMALL_TEXT_RISK": "Puede generar problemas de legibilidad.",
         "HIGH_TAC_RISK": "Puede generar problemas de impresión, secado o estabilidad.",

@@ -35,6 +35,7 @@ CHECK_CLASS = {
     "PDF_STRUCTURE_RISK": "A",
 
     "LOW_IMAGE_RESOLUTION": "B",
+    "BARCODE_RISK": "B",
     "SMALL_TEXT_RISK": "B",
     "HIGH_TAC_RISK": "B",
     "OVERPRINT_RISK": "B",

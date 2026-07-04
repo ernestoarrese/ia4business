@@ -70,6 +70,7 @@ def summarize_operational_profile(profile):
     tac = profile.get("tac", {}) if isinstance(profile, dict) else {}
     image_resolution = profile.get("image_resolution", {}) if isinstance(profile, dict) else {}
     separations = profile.get("separations", {}) if isinstance(profile, dict) else {}
+    barcode = profile.get("barcode", {}) if isinstance(profile, dict) else {}
 
     return {
         "profile_name": profile.get("profile_name"),
@@ -86,7 +87,9 @@ def summarize_operational_profile(profile):
         "image_recommended_dpi": image_resolution.get("recommended_dpi"),
         "separation_normal_max_printable": separations.get("normal_max_printable"),
         "separation_warning_max_printable": separations.get("warning_max_printable"),
-        "separation_critical_above_printable": separations.get("critical_above_printable")
+        "separation_critical_above_printable": separations.get("critical_above_printable"),
+        "barcode_image_minimum_dpi": barcode.get("minimum_image_dpi", 300),
+        "barcode_image_critical_dpi": barcode.get("critical_image_dpi", 200)
     }
 
 
@@ -207,6 +210,47 @@ def evaluate_rgb_object(finding, profile):
     p, w = severity_meta(sev, {"CRITICAL": 35, "WARNING": 15, "INFO": 1})
     return apply_business_fields(finding, sev, "Color / Separaciones", reason, p, "Convertir RGB a CMYK o spot validado según perfil.", w)
 
+
+
+def evaluate_barcode_risk(finding, profile):
+    barcode_profile = profile.get("barcode", {}) if isinstance(profile, dict) else {}
+
+    enabled = barcode_profile.get("enabled", True)
+    minimum_dpi = float(barcode_profile.get("minimum_image_dpi", 300))
+    critical_dpi = float(barcode_profile.get("critical_image_dpi", 200))
+
+    dpi = extract_dpi_value(finding) or 0
+    candidate_type = finding.get("barcode_candidate_type", "unknown")
+    confidence = finding.get("barcode_confidence", "Baja")
+
+    if not enabled:
+        sev = "PASS"
+    elif dpi and dpi < critical_dpi:
+        sev = "CRITICAL"
+    elif dpi and dpi < minimum_dpi:
+        sev = "WARNING"
+    else:
+        sev = "INFO"
+
+    reason = (
+        f"Posible {candidate_type.upper()} detectado como imagen con {dpi:.0f} dpi efectivos. "
+        f"Límites del perfil: WARNING < {minimum_dpi:.0f} dpi, CRITICAL < {critical_dpi:.0f} dpi. "
+        f"Confianza de detección: {confidence}."
+    )
+
+    action = (
+        "Validar lectura del código en el arte final. Si el código está rasterizado o pixelado, "
+        "reemplazar por vector o imagen de mayor resolución. Validar además que el código esté construido "
+        "a una sola tinta cuando aplique; los códigos multitinta pueden generar problemas de registro y lectura."
+    )
+
+    p, w = severity_meta(sev, {"CRITICAL": 35, "WARNING": 20, "INFO": 1})
+    result = apply_business_fields(finding, sev, "Código de barras / QR", reason, p, action, w)
+
+    result["profile_barcode_minimum_image_dpi"] = minimum_dpi
+    result["profile_barcode_critical_image_dpi"] = critical_dpi
+
+    return result
 
 def evaluate_low_image_resolution(finding, profile):
     dpi = extract_dpi_value(finding)
@@ -432,6 +476,8 @@ def enrich_finding(finding, profile):
 
     if check == "RGB_OBJECT":
         return evaluate_rgb_object(finding.copy(), profile)
+    if check == "BARCODE_RISK":
+        return evaluate_barcode_risk(finding.copy(), profile)
     if check == "LOW_IMAGE_RESOLUTION":
         return evaluate_low_image_resolution(finding.copy(), profile)
     if check == "SMALL_TEXT_RISK":

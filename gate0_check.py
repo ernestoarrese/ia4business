@@ -268,6 +268,118 @@ def check_rgb_objects(page_stream, page_number):
     return findings
 
 
+
+def check_barcode_risk(page, page_number, minimum_image_dpi=300.0, critical_image_dpi=200.0, max_findings=20):
+    """
+    Barcode Intelligence v1.
+
+    Detecta candidatos barcode/QR como imagen de bajo DPI.
+    No decodifica el código.
+    No valida GS1, quiet zone, magnificación ni lectura.
+    """
+    findings = []
+
+    try:
+        image_info = page.get_image_info(xrefs=True)
+    except Exception:
+        return findings
+
+    try:
+        page_text = page.get_text("text").lower()
+    except Exception:
+        page_text = ""
+
+    barcode_keywords = [
+        "barcode", "bar code", "ean", "upc", "gs1",
+        "code128", "code 128", "datamatrix", "data matrix"
+    ]
+    qr_keywords = ["qr", "qrcode", "qr code"]
+
+    has_barcode_keyword = any(k in page_text for k in barcode_keywords)
+    has_qr_keyword = any(k in page_text for k in qr_keywords)
+
+    page_area = abs(page.rect.width * page.rect.height) if getattr(page, "rect", None) else 0
+
+    for idx, img in enumerate(image_info, start=1):
+        bbox = img.get("bbox")
+        width_px = img.get("width") or 0
+        height_px = img.get("height") or 0
+
+        if not bbox or not width_px or not height_px:
+            continue
+
+        rect = fitz.Rect(bbox)
+
+        width_in = rect.width / 72 if rect.width else 0
+        height_in = rect.height / 72 if rect.height else 0
+
+        dpi_x = width_px / width_in if width_in else 0
+        dpi_y = height_px / height_in if height_in else 0
+
+        if not dpi_x or not dpi_y:
+            continue
+
+        effective_dpi = round(min(dpi_x, dpi_y), 1)
+
+        if effective_dpi >= minimum_image_dpi:
+            continue
+
+        display_aspect = rect.width / rect.height if rect.height else 0
+        normalized_aspect = max(display_aspect, 1 / display_aspect) if display_aspect else 0
+        area_percent = round((abs(rect.width * rect.height) / page_area) * 100, 2) if page_area else 0
+
+        is_barcode_shape = normalized_aspect >= 2.8
+        is_qr_shape = 0.85 <= display_aspect <= 1.18 and area_percent <= 10
+
+        if not (is_barcode_shape or is_qr_shape or has_barcode_keyword or has_qr_keyword):
+            continue
+
+        if is_barcode_shape:
+            candidate_type = "barcode"
+            detection_method = "wide_image_geometry"
+            confidence = "Media"
+        elif is_qr_shape:
+            candidate_type = "qr"
+            detection_method = "square_image_geometry"
+            confidence = "Baja"
+        elif has_qr_keyword:
+            candidate_type = "qr"
+            detection_method = "page_text_keyword"
+            confidence = "Baja"
+        else:
+            candidate_type = "barcode"
+            detection_method = "page_text_keyword"
+            confidence = "Baja"
+
+        severity = "HIGH" if effective_dpi < critical_image_dpi else "MEDIUM"
+
+        findings.append({
+            "check": "BARCODE_RISK",
+            "severity": severity,
+            "page": page_number,
+            "value": f"{candidate_type} candidate image {idx}: {effective_dpi} dpi",
+            "detail": (
+                f"Posible {candidate_type.upper()} como imagen con {effective_dpi:.0f} dpi efectivos. "
+                f"Barcode Intelligence v1 no confirma lectura; detecta riesgo técnico del candidato."
+            ),
+            "barcode_candidate_type": candidate_type,
+            "barcode_confidence": confidence,
+            "detection_method": detection_method,
+            "effective_dpi": effective_dpi,
+            "minimum_image_dpi": minimum_image_dpi,
+            "critical_image_dpi": critical_image_dpi,
+            "bbox": [round(float(x), 2) for x in bbox],
+            "object_area_percent": area_percent,
+            "display_aspect_ratio": round(display_aspect, 2) if display_aspect else 0,
+            "image_width_px": width_px,
+            "image_height_px": height_px,
+        })
+
+        if len(findings) >= max_findings:
+            return findings
+
+    return findings
+
 def check_low_resolution_images(page, page_number):
     """
     Detecta imágenes con resolución efectiva menor a 250 dpi.
@@ -309,6 +421,8 @@ def check_low_resolution_images(page, page_number):
                 "detail": "Imagen con baja resolución efectiva",
                 "value": f"Imagen {idx}: {effective_dpi} dpi",
                 "effective_dpi": effective_dpi,
+                "bbox": [round(float(x), 2) for x in bbox],
+                "image_index": idx,
                 "recommendation": "Revisar resolución efectiva al tamaño final de uso."
             })
 
@@ -755,6 +869,44 @@ def check_pdf_structure_risk(pdf_structure):
     return findings
 
 
+
+def _finding_bbox_key(finding):
+    bbox = finding.get("bbox") or []
+    if len(bbox) != 4:
+        return None
+
+    try:
+        return tuple(round(float(x), 1) for x in bbox)
+    except Exception:
+        return None
+
+
+def dedupe_lowres_against_barcode(findings):
+    """
+    Si el mismo bbox genera LOW_IMAGE_RESOLUTION y BARCODE_RISK,
+    conserva BARCODE_RISK porque es el riesgo más específico para preprensa/calidad.
+    """
+    barcode_keys = {
+        (f.get("page"), _finding_bbox_key(f))
+        for f in findings
+        if f.get("check") == "BARCODE_RISK" and _finding_bbox_key(f) is not None
+    }
+
+    if not barcode_keys:
+        return findings
+
+    deduped = []
+
+    for finding in findings:
+        if finding.get("check") == "LOW_IMAGE_RESOLUTION":
+            key = (finding.get("page"), _finding_bbox_key(finding))
+            if key in barcode_keys:
+                continue
+
+        deduped.append(finding)
+
+    return deduped
+
 def analyze_pdf(pdf_path):
     findings = []
 
@@ -767,7 +919,10 @@ def analyze_pdf(pdf_path):
         page_stream = read_page_stream(doc, page)
 
         findings.extend(check_rgb_objects(page_stream, page_number))
-        findings.extend(check_low_resolution_images(page, page_number))
+        image_findings = []
+        image_findings.extend(check_low_resolution_images(page, page_number))
+        image_findings.extend(check_barcode_risk(page, page_number))
+        findings.extend(dedupe_lowres_against_barcode(image_findings))
         findings.extend(check_small_text(page, page_number))
         findings.extend(check_high_tac(page_stream, page_number))
 

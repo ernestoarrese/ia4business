@@ -53,6 +53,47 @@ def _build_rgb_insight(top_risk, related):
     }
 
 
+
+def _build_barcode_insight(top_risk, related):
+    selected = related[0] if related else top_risk
+
+    candidate_type = selected.get("barcode_candidate_type") or top_risk.get("barcode_candidate_type") or "código"
+    dpi = selected.get("effective_dpi") or top_risk.get("effective_dpi")
+    confidence = selected.get("barcode_confidence") or top_risk.get("barcode_confidence") or "Baja"
+
+    if dpi is not None:
+        brief = (
+            f"Se detectó un posible {candidate_type} como imagen de {_fmt(dpi)} dpi efectivos. "
+            "Puede haber riesgo de lectura si el código está rasterizado, escalado o con baja resolución. "
+            "Conviene validar escaneo antes de liberar."
+        )
+        found = f"Posible {candidate_type} detectado como imagen de {_fmt(dpi)} dpi efectivos."
+    else:
+        brief = (
+            f"Se detectó un posible {candidate_type}. "
+            "Conviene revisar su construcción y validar lectura antes de liberar."
+        )
+        found = f"Posible {candidate_type} detectado."
+
+    return {
+        "brief_comment": brief,
+        "what_found": found,
+        "why_it_matters": "Los códigos de barras y QR son elementos funcionales. No basta con que se vean bien; deben poder leerse de forma confiable en control de calidad y uso final.",
+        "possible_impact": "Un código pixelado, rasterizado a baja resolución o construido con varias tintas puede generar problemas de registro, lectura deficiente, rechazo de calidad, reproceso o bloqueo de lote.",
+        "recommended_action": selected.get("action") or selected.get("recommendation") or "Validar lectura del código. Preferir código vectorial o imagen de alta resolución. Confirmar que esté construido a una sola tinta cuando aplique y evitar códigos multitinta por riesgo de registro.",
+        "urgency": _severity_to_urgency(_get_severity(top_risk)),
+        "evidence": {
+            "barcode_candidate_type": candidate_type,
+            "effective_dpi": dpi,
+            "barcode_confidence": confidence,
+            "detection_method": selected.get("detection_method"),
+            "bbox": selected.get("bbox"),
+            "page": top_risk.get("page"),
+            "rule_applied": "BARCODE_RISK",
+            "confidence": confidence
+        }
+    }
+
 def _build_lowres_insight(top_risk, related):
     selected = related[0] if related else {}
     dpi = selected.get("effective_dpi") or top_risk.get("effective_dpi")
@@ -263,6 +304,8 @@ def build_expert_insight(top_risk, report_data):
 
     if check == "RGB_OBJECT":
         return _build_rgb_insight(top_risk, related)
+    if check == "BARCODE_RISK":
+        return _build_barcode_insight(top_risk, related)
     if check == "LOW_IMAGE_RESOLUTION":
         return _build_lowres_insight(top_risk, related)
     if check == "HIGH_TAC_RISK":
