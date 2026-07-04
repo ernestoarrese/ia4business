@@ -16,6 +16,7 @@ from gate0.services.history_service import HistoryService
 from gate0.services.runtime_service import RuntimeService
 from gate0.services.zip_inventory_service import ZIPInventoryService
 from gate0.services.separation_intelligence_service import SeparationIntelligenceService
+from gate0.services.comparison_service import ComparisonService
 from gate0_orchestrator import Gate0Orchestrator
 
 app = FastAPI(title="Gate0 Packaging QA")
@@ -41,6 +42,7 @@ history_service = HistoryService(HISTORY_CSV)
 runtime_service = RuntimeService(UPLOADS_DIR, REPORTS_DIR, TEMP_DIR, TTL_SECONDS)
 zip_inventory_service = ZIPInventoryService()
 separation_intelligence_service = SeparationIntelligenceService()
+comparison_service = ComparisonService()
 orchestrator = Gate0Orchestrator(ROOT)
 
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
@@ -77,6 +79,22 @@ def possible_duplicate_note(analyzable):
 def render_zip_selection(session_id, client, inventory):
     analyzable = inventory.get("analyzable", [])
     duplicate_note = possible_duplicate_note(analyzable)
+    candidate_pairs = comparison_service.find_candidate_pairs(analyzable)
+
+    pair_html = ""
+    for pair in candidate_pairs:
+        files = "".join(
+            f"<li>{html.escape(f.get('name', ''))} <span>{html.escape(f.get('extension', '').upper().replace('.', ''))}</span></li>"
+            for f in pair.get("files", [])
+        )
+        pair_html += f"""
+        <div class="pair-box">
+          <b>Artwork Consistency candidate</b>
+          <p>{html.escape(pair.get("reason", ""))}</p>
+          <p>Gate0 puede usar esta pareja como base futura para validar consistencia estructural entre AI y PDF.</p>
+          <ul>{files}</ul>
+        </div>
+        """
 
     options = ""
 
@@ -131,6 +149,10 @@ p{{color:#667085;line-height:1.45}}
 .file-option b{{display:block}}
 .file-option span{{display:block;color:#667085;font-size:13px;margin-top:4px}}
 .note{{background:#fffbeb;border:1px solid #fde68a;border-radius:16px;padding:12px;color:#92400e;margin:14px 0}}
+.pair-box{{background:#eff6ff;border:1px solid #bfdbfe;border-radius:16px;padding:12px;margin:14px 0;color:#1e3a8a}}
+.pair-box p{{margin:6px 0;color:#1e40af;font-size:13px}}
+.pair-box ul{{margin:6px 0 0;padding-left:18px;font-size:13px}}
+.pair-box li span{{color:#64748b;font-size:11px;font-weight:850}}
 button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;padding:15px 18px;font-weight:950;font-size:16px;cursor:pointer;margin-top:16px}}
 .empty{{padding:18px;background:#f8fafc;border-radius:16px;color:#667085}}
 .support-box{{margin-top:20px;background:#f8fafc;border:1px solid #edf2f7;border-radius:18px;padding:16px}}
@@ -153,6 +175,7 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
   </div>
 
   {f'<div class="note">{html.escape(duplicate_note)}</div>' if duplicate_note else ''}
+  {pair_html}
 
   <form action="/analyze-selected" method="post">
     <input type="hidden" name="sid" value="{html.escape(session_id)}"/>
