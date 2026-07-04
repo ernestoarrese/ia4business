@@ -210,6 +210,14 @@
 .evidence-item span{font-size:13px;color:var(--ink);font-weight:800;word-break:break-word}
 @media(max-width:900px){.evidence-grid{grid-template-columns:1fr}}
 
+
+.guidance-panel{border:1px solid var(--border);border-radius:14px;padding:12px;background:#fff;margin:12px 0}
+.guidance-title{font-size:12px;font-weight:900;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.guidance-list{display:flex;flex-direction:column;gap:8px}
+.guidance-item{border:1px solid #eef2f7;border-radius:12px;padding:9px;background:#f9fafb}
+.guidance-item b{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.guidance-item div{font-size:13px;color:#374151;line-height:1.35}
+
 </style>
 </head>
 <body>
@@ -543,6 +551,87 @@ function renderEvidencePanel(r,insight){
   `;
 }
 
+
+function intelligenceValue(r,key,fallback=""){
+  if(!r)return fallback;
+  return r[key]||fallback;
+}
+
+function riskPossibleImpact(r){
+  return intelligenceValue(r,"possible_impact","Puede generar impacto operativo, de calidad o liberación del archivo.");
+}
+
+function riskCurrentLimitation(r){
+  return intelligenceValue(r,"current_limitation","Limitación específica pendiente de consolidar.");
+}
+
+function riskFutureEvolution(r){
+  return intelligenceValue(r,"future_evolution","Evolución futura pendiente de definir según validación de producto.");
+}
+
+function guidanceLabel(key){
+  const map={
+    prepress_guidance:"Guía de preprensa",
+    single_ink_guidance:"Una sola tinta",
+    negative_text_guidance:"Texto negativo",
+    multicolor_guidance:"Multitinta",
+    white_ink_guidance:"White ink",
+    generic_name_guidance:"Nombres genéricos",
+    duplicate_guidance:"Duplicidades",
+    technical_separation_guidance:"Separaciones técnicas",
+    rationalization_guidance:"Racionalización",
+    area_guidance:"Área afectada",
+    rich_black_guidance:"Negro enriquecido",
+    profile_guidance:"Perfil operativo",
+    visual_validation_guidance:"Validación visual",
+    intent_guidance:"Intención",
+    press_capacity_guidance:"Capacidad de prensa",
+    legal_text_guidance:"Textos legales",
+    empty_page_guidance:"Páginas vacías",
+    complexity_guidance:"Complejidad",
+    workflow_guidance:"Flujo",
+    effective_dpi_guidance:"DPI efectivo",
+    role_guidance:"Rol de imagen",
+    barcode_dedupe_guidance:"Barcode dedupe",
+    conversion_guidance:"Conversión",
+    color_management_guidance:"Gestión de color",
+    do_not_claim:"Alcance v1"
+  };
+  return map[key]||key.replaceAll("_"," ");
+}
+
+function buildGuidanceItems(r){
+  if(!r)return [];
+
+  const items=[];
+  Object.keys(r).forEach(key=>{
+    if(key.endsWith("_guidance") || key==="do_not_claim"){
+      if(r[key])items.push({label:guidanceLabel(key),value:r[key]});
+    }
+  });
+
+  return items;
+}
+
+function renderGuidancePanel(r){
+  const items=buildGuidanceItems(r);
+  if(!items.length)return "";
+
+  return `
+    <div class="guidance-panel">
+      <div class="guidance-title">Guías específicas del check</div>
+      <div class="guidance-list">
+        ${items.map(item=>`
+          <div class="guidance-item">
+            <b>${esc(item.label)}</b>
+            <div>${esc(item.value)}</div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function riskCriteria(input){
   const fromRisk=(input&&typeof input==="object")?(input.criteria||input.applied_criteria):"";
   const check=(input&&typeof input==="object")?input.check:input;
@@ -639,7 +728,21 @@ function selectRisk(i){
         <strong>Contexto operativo</strong>
         <div>${esc(riskOperationalContext(r))}</div>
       </div>
+      <div class="risk-intel-card">
+        <strong>Impacto posible</strong>
+        <div>${esc(riskPossibleImpact(r))}</div>
+      </div>
+      <div class="risk-intel-card">
+        <strong>Limitación actual</strong>
+        <div>${esc(riskCurrentLimitation(r))}</div>
+      </div>
+      <div class="risk-intel-card">
+        <strong>Evolución futura</strong>
+        <div>${esc(riskFutureEvolution(r))}</div>
+      </div>
     </div>
+
+    ${renderGuidancePanel(r)}
 
     <div class="action-row">
       <div class="info-box">

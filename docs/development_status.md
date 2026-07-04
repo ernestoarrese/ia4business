@@ -497,3 +497,19 @@ Nunca una sin la otra.
 - Con esto queda consolidada la inteligencia base de los checks actuales.
 
 ---
+
+
+## Dashboard Check Intelligence Full v1
+
+- El dashboard consume más campos enriquecidos desde `check_intelligence.py` vía JSON:
+    - criterio aplicado
+    - contexto operativo
+    - impacto posible
+    - limitación actual
+    - evolución futura
+    - guías específicas por check
+    - alcance / do_not_claim
+- El dashboard mantiene fallback visual, pero deja de ser la fuente maestra de inteligencia.
+- Esto protege los comentarios y criterios ya trabajados sin duplicarlos manualmente en UI.
+
+---
