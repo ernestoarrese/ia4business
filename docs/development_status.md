@@ -364,3 +364,19 @@ Nunca una sin la otra.
 - No se reemplazaron comentarios expertos existentes.
 
 ---
+
+
+## Small Text Intelligence Consolidation v1
+
+- Se consolidó `SMALL_TEXT_RISK` como segundo check piloto de inteligencia protegida.
+- `check_intelligence.py` conserva:
+    - criterio aplicado por perfil operativo
+    - contexto de legibilidad
+    - impacto legal/regulatorio
+    - guía para texto negativo
+    - guía para texto multitinta
+    - limitación explícita de v1
+    - evolución hacia clasificación positivo/negativo/multitinta/fondo
+- No se reemplazaron comentarios expertos existentes.
+
+---
