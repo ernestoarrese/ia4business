@@ -319,3 +319,22 @@ Nunca una sin la otra.
 - Esto prepara la transición futura hacia una matriz consumible por motor/agentes.
 
 ---
+
+
+## Evidence Panel v1
+
+- Cada Top Risk muestra evidencia técnica disponible desde el JSON.
+- Evidencia posible:
+    - página
+    - severidad
+    - DPI efectivo
+    - TAC detectado
+    - tamaño de texto
+    - área de objeto
+    - barcode confidence
+    - método de detección
+    - separaciones
+    - bbox
+- Mejora la confianza del usuario en el diagnóstico sin modificar el motor.
+
+---

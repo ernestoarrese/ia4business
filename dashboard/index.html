@@ -201,6 +201,15 @@
 .risk-intel-card div{font-size:13px;color:#374151;line-height:1.35}
 @media(max-width:900px){.risk-intel-grid{grid-template-columns:1fr}}
 
+
+.evidence-panel{border:1px solid var(--border);border-radius:14px;padding:12px;background:#fff;margin:12px 0}
+.evidence-title{font-size:12px;font-weight:900;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.evidence-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.evidence-item{border:1px solid #eef2f7;border-radius:12px;padding:9px;background:#f9fafb}
+.evidence-item b{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.evidence-item span{font-size:13px;color:var(--ink);font-weight:800;word-break:break-word}
+@media(max-width:900px){.evidence-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -468,6 +477,72 @@ function render(data){
 }
 
 
+
+function firstValue(...values){
+  for(const value of values){
+    if(value!==undefined && value!==null && value!=="" && value!==0)return value;
+  }
+  return "";
+}
+
+function formatEvidenceValue(value){
+  if(value===undefined || value===null || value==="")return "";
+  if(Array.isArray(value))return value.join(", ");
+  if(typeof value==="object")return JSON.stringify(value);
+  return String(value);
+}
+
+function pushEvidence(items,label,value,suffix=""){
+  const formatted=formatEvidenceValue(value);
+  if(!formatted)return;
+  items.push({label,value:formatted + suffix});
+}
+
+function buildEvidenceItems(r,insight){
+  const ev=(insight&&insight.evidence)||{};
+  const items=[];
+
+  pushEvidence(items,"Página",firstValue(r.page,ev.page));
+  pushEvidence(items,"Severidad",firstValue(r.business_severity,r.severity));
+  pushEvidence(items,"DPI efectivo",firstValue(r.effective_dpi,ev.effective_dpi)," dpi");
+  pushEvidence(items,"DPI mínimo",firstValue(r.minimum_image_dpi,r.minimum_suggested_dpi,ev.minimum_suggested_dpi,ev.minimum_image_dpi)," dpi");
+  pushEvidence(items,"TAC detectado",firstValue(r.detected_tac,ev.detected_tac,r.tac,ev.tac),"%");
+  pushEvidence(items,"Límite TAC",firstValue(r.tac_limit,ev.tac_limit),"%");
+  pushEvidence(items,"Tamaño texto",firstValue(r.font_size_pt,ev.font_size_pt)," pt");
+  pushEvidence(items,"Altura texto",firstValue(r.text_height_mm,ev.text_height_mm)," mm");
+  pushEvidence(items,"Área objeto",firstValue(r.object_area_percent,ev.object_area_percent),"%");
+  pushEvidence(items,"Image role",firstValue(r.image_role,ev.image_role));
+  pushEvidence(items,"Barcode tipo",firstValue(r.barcode_candidate_type,ev.barcode_candidate_type));
+  pushEvidence(items,"Confianza",firstValue(r.barcode_confidence,ev.barcode_confidence,ev.confidence));
+  pushEvidence(items,"Método detección",firstValue(r.detection_method,ev.detection_method));
+  pushEvidence(items,"Spot",firstValue(r.spot_name,r.separation_name,r.ink_name,ev.spot_name,ev.separation_name));
+  pushEvidence(items,"Separaciones",firstValue(r.printable_separation_count,r.separation_count,ev.printable_separation_count,ev.separation_count));
+  pushEvidence(items,"bbox",firstValue(r.bbox,ev.bbox));
+  pushEvidence(items,"Regla",firstValue(ev.rule_applied,r.check));
+
+  return items.slice(0,10);
+}
+
+function renderEvidencePanel(r,insight){
+  const items=buildEvidenceItems(r,insight);
+
+  if(!items.length)return "";
+
+  return `
+    <div class="evidence-panel">
+      <div class="evidence-title">Evidencia técnica</div>
+      <div class="evidence-grid">
+        ${items.map(item=>`
+          <div class="evidence-item">
+            <b>${esc(item.label)}</b>
+            <span>${esc(item.value)}</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function riskCriteria(input){
   const fromRisk=(input&&typeof input==="object")?(input.criteria||input.applied_criteria):"";
   const check=(input&&typeof input==="object")?input.check:input;
@@ -527,6 +602,7 @@ function selectRisk(i){
 
   const ev=r.risk_evidence||{};
   const insight=r.expert_insight||{};
+  const evidenceHtml=renderEvidencePanel(r,insight);
   $("riskDetail").innerHTML=`
     <div class="risk-top">
       <h2>${esc(r.title||displayName(r.check))}</h2>
@@ -551,6 +627,8 @@ function selectRisk(i){
         <div>${esc(r.decision_impact||"Contribuye a la evaluación general del archivo.")}</div>
       </div>
     </div>
+
+    ${evidenceHtml}
 
     <div class="risk-intel-grid">
       <div class="risk-intel-card">
