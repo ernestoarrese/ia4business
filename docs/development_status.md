@@ -83,6 +83,32 @@ Siempre se priorizará Bash sobre edición manual para reducir errores.
 
 ---
 
+## Operational Profile compacto en cabecera
+
+- El perfil operativo se muestra en la cabecera como `Perfil usado`.
+- El detalle técnico del perfil se despliega bajo demanda con click.
+- Se evita desplazar los Top Risks hacia abajo.
+- Por ahora se mantiene un solo perfil default.
+- Backlog futuro: selector de perfil por cliente/usuario cuando exista login y múltiples perfiles.
+
+---
+
+## Operational Profile visible en Dashboard
+
+- Dashboard muestra el perfil operativo usado en el análisis.
+- Se exponen thresholds clave:
+    - TAC máximo.
+    - Small Text WARNING.
+    - Small Text CRITICAL.
+- Por ahora Gate0 usa un solo perfil default.
+- Backlog futuro:
+    - perfil por cliente,
+    - perfil por usuario logueado,
+    - selector de perfil,
+    - perfil default editable por cliente/planta/proceso.
+
+---
+
 ## Profile Hardening v1
 
 - Gate0 expone el perfil operativo usado en cada análisis.

@@ -40,7 +40,7 @@
 .hero-top{display:flex;align-items:center;gap:28px}
 .hero-decision{display:flex;align-items:center;gap:14px;min-width:300px}
 .hero-score{min-width:150px}
-.hero-meta{flex:1;display:grid;grid-template-columns:1.5fr .9fr .9fr .7fr;gap:10px}
+.hero-meta{flex:1;display:grid;grid-template-columns:1.4fr .8fr .8fr .55fr 1fr;gap:10px}
 .hero-meta div{background:#f8fafc;border:1px solid #edf2f7;border-radius:14px;padding:10px;min-height:64px}
 .hero-meta b{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 .hero-meta span{font-size:14px;font-weight:850;line-height:1.25;word-break:break-word}
@@ -179,6 +179,20 @@
 .sep-tag.Plano{background:#dcfce7;color:#166534}
 .sep-tag.Technical{background:#fee2e2;color:#991b1b}
 .sep-warning{font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:8px;margin-top:8px}
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.profile-item{background:#f8fafc;border:1px solid #edf2f7;border-radius:14px;padding:10px}
+.profile-item b{display:block;font-size:11px;color:#667085;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.profile-item span{font-size:13px;font-weight:850;line-height:1.25;word-break:break-word}
+.profile-note{font-size:12px;color:#667085;line-height:1.35;margin-top:10px}
+.profile-status{display:inline-block;border-radius:999px;padding:4px 8px;background:#eef2ff;color:#3730a3;font-size:11px;font-weight:950}
+.profile-chip{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.profile-chip span{color:#1d4ed8}
+.profile-chip small{font-size:12px;color:#667085;font-weight:950}
+.profile-detail-panel{display:none;margin-top:12px;border:1px solid #e5e7eb;border-radius:18px;background:#f8fafc;padding:14px}
+.profile-detail-panel.open{display:block}
+.profile-detail-panel .profile-grid{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1000px){.profile-detail-panel .profile-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:1000px){.profile-grid{grid-template-columns:1fr}}
 
 </style>
 </head>
@@ -214,6 +228,7 @@
           <div><b>Cliente</b><span id="client">-</span></div>
           <div><b>Proceso</b><span id="process">-</span></div>
           <div><b>Páginas</b><span id="pages">-</span></div>
+          <div class="profile-chip" onclick="toggleOperationalProfile()"><div><b>Perfil usado</b><span id="profileName">-</span></div><small>▼</small></div>
         </div>
       </div>
 
@@ -221,6 +236,8 @@
         <span id="headline"></span>
         <span id="userMessage"></span>
       </div>
+
+      <div id="operationalProfile" class="profile-detail-panel"></div>
     </div>
   </section>
 
@@ -229,7 +246,7 @@
     <div class="card viewer"><iframe id="pdfFrame" title="PDF analizado"></iframe></div>
 
     <aside class="side">
-      <div class="card">
+<div class="card">
         <h3 class="section-title">Top Risks</h3>
         <div id="riskList" class="risk-list"></div>
       </div>
@@ -273,6 +290,7 @@ const CHECK_NAMES = {
   "RGB_OBJECT": "Objetos RGB detectados",
   "LOW_IMAGE_RESOLUTION": "Resolución de imagen insuficiente",
   "FONT_NOT_EMBEDDED": "Fuentes no embebidas",
+  "SMALL_TEXT_RISK": "Texto pequeño / legibilidad",
   "HIGH_TAC_RISK": "Cobertura total de tinta elevada",
   "OVERPRINT_RISK": "Observación de sobreimpresión",
   "WHITE_INK_RISK": "Gestión de tinta blanca",
@@ -280,6 +298,11 @@ const CHECK_NAMES = {
   "SEPARATION_COUNT_RISK": "Complejidad de separaciones",
   "PDF_STRUCTURE_RISK": "Estructura PDF"
 };
+
+function toggleOperationalProfile(){
+  const panel=$("operationalProfile");
+  if(panel)panel.classList.toggle("open");
+}
 
 function displayName(check){
   return CHECK_NAMES[check] || check;
@@ -297,8 +320,9 @@ function normalize(data){
   return {
     file:data.file||"-",
     client:data.client||"Sin cliente",
-    process:data.process||data.business_assessment?.process||"flexo",
+    process:data.process||data.business_assessment?.process||data.operational_profile?.process||"flexo",
     pages:data.pages||data.pdf_structure?.page_count||1,
+    operationalProfile:data.operational_profile||data.business_assessment?.operational_profile||{},
     decision:rs.decision||ra.readiness_decision||"-",
     status:rs.status||ra.readiness_status||"-",
     score:rs.score||ra.readiness_score||"-",
@@ -308,6 +332,70 @@ function normalize(data){
   }
 }
 
+
+
+
+function renderOperationalProfile(data){
+  const panel=$("operationalProfile");
+  const profileName=$("profileName");
+
+  const op=data.operational_profile||data.business_assessment?.operational_profile||{};
+
+  if(profileName){
+    profileName.textContent=op.profile_name||"-";
+  }
+
+  if(!panel)return;
+
+  if(!Object.keys(op).length){
+    panel.innerHTML='<div class="empty">No se encontró perfil operativo en el reporte.</div>';
+    return;
+  }
+
+  const status=op.profile_status||"-";
+  const fileFound=op.profile_file_found;
+  const sourceNote=fileFound===false
+    ? "Gate0 usó un fallback explícito porque no encontró archivo de perfil."
+    : "Perfil cargado desde configuración operativa versionada.";
+
+  panel.innerHTML=`
+    <div class="profile-grid">
+      <div class="profile-item">
+        <b>Perfil</b>
+        <span>${esc(op.profile_name||"-")}</span>
+      </div>
+      <div class="profile-item">
+        <b>Estado</b>
+        <span class="profile-status">${esc(status)}</span>
+      </div>
+      <div class="profile-item">
+        <b>Proceso</b>
+        <span>${esc(op.process||"-")}</span>
+      </div>
+      <div class="profile-item">
+        <b>Sustrato</b>
+        <span>${esc(op.substrate_family||"-")}</span>
+      </div>
+      <div class="profile-item">
+        <b>TAC máximo</b>
+        <span>${esc(op.tac_max_percent??"-")}%</span>
+      </div>
+      <div class="profile-item">
+        <b>Texto pequeño</b>
+        <span>WARNING &lt; ${esc(op.small_text_warning_threshold_pt??"-")} pt · CRITICAL &lt; ${esc(op.small_text_critical_threshold_pt??"-")} pt</span>
+      </div>
+      <div class="profile-item">
+        <b>DPI imagen</b>
+        <span>Mín. ${esc(op.image_minimum_dpi??"-")} · Rec. ${esc(op.image_recommended_dpi??"-")}</span>
+      </div>
+      <div class="profile-item">
+        <b>Separaciones</b>
+        <span>Normal ≤ ${esc(op.separation_normal_max_printable??"-")} · Warning ≤ ${esc(op.separation_warning_max_printable??"-")}</span>
+      </div>
+    </div>
+    <div class="profile-note">${esc(sourceNote)}</div>
+  `;
+}
 
 
 function renderSeparations(data){
@@ -365,6 +453,7 @@ function render(data){
   $("pages").textContent=d.pages;
 
   renderRisks(currentRisks);
+  renderOperationalProfile(data);
   renderSeparations(data);
   if(currentRisks.length) selectRisk(0);
   else $("riskDetail").innerHTML='<div class="empty">No hay riesgos principales WARNING/CRITICAL para mostrar.</div>';
