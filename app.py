@@ -18,6 +18,7 @@ from gate0.services.zip_inventory_service import ZIPInventoryService
 from gate0.services.separation_intelligence_service import SeparationIntelligenceService
 from gate0.services.comparison_service import ComparisonService
 from gate0_orchestrator import Gate0Orchestrator
+from gate0.agents.inspection_agent import InspectionAgent
 
 app = FastAPI(title="Gate0 Packaging QA")
 
@@ -43,6 +44,7 @@ runtime_service = RuntimeService(UPLOADS_DIR, REPORTS_DIR, TEMP_DIR, TTL_SECONDS
 zip_inventory_service = ZIPInventoryService()
 separation_intelligence_service = SeparationIntelligenceService()
 comparison_service = ComparisonService()
+inspection_agent = InspectionAgent()
 orchestrator = Gate0Orchestrator(ROOT)
 
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
@@ -87,12 +89,27 @@ def render_zip_selection(session_id, client, inventory):
             f"<li>{html.escape(f.get('name', ''))} <span>{html.escape(f.get('extension', '').upper().replace('.', ''))}</span></li>"
             for f in pair.get("files", [])
         )
+        ai_file = next((f for f in pair.get("files", []) if f.get("extension") == ".ai"), None)
+        pdf_file = next((f for f in pair.get("files", []) if f.get("extension") == ".pdf"), None)
+
+        compare_button = ""
+        if ai_file and pdf_file:
+            compare_button = f"""
+            <form action="/compare-candidate" method="post">
+              <input type="hidden" name="sid" value="{html.escape(session_id)}"/>
+              <input type="hidden" name="client" value="{html.escape(client)}"/>
+              <input type="hidden" name="ai_file" value="{html.escape(ai_file.get('relative_path', ''))}"/>
+              <input type="hidden" name="pdf_file" value="{html.escape(pdf_file.get('relative_path', ''))}"/>
+              <button type="submit" class="secondary-button">Comparar AI vs PDF</button>
+            </form>
+            """
+
         pair_html += f"""
         <div class="pair-box">
           <b>Artwork Consistency candidate</b>
           <p>{html.escape(pair.get("reason", ""))}</p>
-          <p>Gate0 puede usar esta pareja como base futura para validar consistencia estructural entre AI y PDF.</p>
           <ul>{files}</ul>
+          {compare_button}
         </div>
         """
 
@@ -456,6 +473,92 @@ async def analyze_local_zip(zip_name: str = Form(...), client: str = Form(defaul
 
     return HTMLResponse(render_zip_selection(session_id, client, inventory))
 
+
+
+@app.post("/compare-candidate")
+async def compare_candidate(
+    sid: str = Form(...),
+    ai_file: str = Form(...),
+    pdf_file: str = Form(...),
+    client: str = Form(default="")
+):
+    cleanup_old_runtime_files()
+
+    extract_dir = TEMP_DIR / sid
+    ai_path = extract_dir / ai_file
+    pdf_path = extract_dir / pdf_file
+
+    if not ai_path.exists() or not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="Archivos para comparación no encontrados o expirados.")
+
+    left = inspection_agent.inspect(ai_path)
+    right = inspection_agent.inspect(pdf_path)
+
+    result = comparison_service.compare_inspection_results(left, right)
+
+    rows = ""
+    for check in result.checks:
+        rows += f"""
+        <tr>
+          <td>{html.escape(str(check.get("name", "")))}</td>
+          <td>{html.escape(str(check.get("status", "")))}</td>
+          <td>{html.escape(str(check.get("left", "")))}</td>
+          <td>{html.escape(str(check.get("right", "")))}</td>
+        </tr>
+        """
+
+    warnings = "".join(f"<li>{html.escape(w)}</li>" for w in result.warnings) or "<li>Sin advertencias estructurales relevantes.</li>"
+
+    return HTMLResponse(f"""
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Artwork Consistency</title>
+<style>
+body{{margin:0;min-height:100vh;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f6f7fb;color:#0f172a;display:grid;place-items:center}}
+.card{{width:min(980px,94vw);background:white;border:1px solid #e5e7eb;border-radius:28px;padding:32px;box-shadow:0 24px 70px rgba(15,23,42,.10)}}
+h1{{font-size:34px;margin:0 0 8px;letter-spacing:-.05em}}
+.score{{font-size:54px;font-weight:950;margin:16px 0}}
+.badge{{display:inline-block;border-radius:999px;padding:8px 12px;background:#eef2ff;color:#3730a3;font-weight:900}}
+table{{width:100%;border-collapse:collapse;margin-top:18px}}
+td,th{{border-bottom:1px solid #e5e7eb;padding:12px;text-align:left;font-size:14px;vertical-align:top}}
+th{{color:#667085;text-transform:uppercase;font-size:12px;letter-spacing:.08em}}
+.warning{{background:#fffbeb;border:1px solid #fde68a;border-radius:16px;padding:14px;margin-top:18px;color:#92400e}}
+a{{display:inline-block;margin-top:20px;color:#1d4ed8;font-weight:900;text-decoration:none}}
+</style>
+</head>
+<body>
+<main class="card">
+  <h1>Artwork Consistency</h1>
+  <p>Comparación estructural inicial entre AI y PDF. No incluye comparación visual todavía.</p>
+
+  <div class="badge">{html.escape(result.overall_status)}</div>
+  <div class="score">{result.score}/100</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>Estado</th>
+        <th>AI</th>
+        <th>PDF</th>
+      </tr>
+    </thead>
+    <tbody>{rows}</tbody>
+  </table>
+
+  <div class="warning">
+    <b>Observaciones</b>
+    <ul>{warnings}</ul>
+  </div>
+
+  <a href="/">← Volver al intake</a>
+</main>
+</body>
+</html>
+""")
 
 @app.post("/analyze-selected")
 async def analyze_selected(
