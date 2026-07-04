@@ -292,3 +292,12 @@ Nunca una sin la otra.
 - Define que no se debe refactorizar hacia orchestrator hasta que exista complejidad real de producto.
 
 ---
+
+
+## Top Risk Criteria Context v1
+
+- Cada Top Risk muestra criterio aplicado y contexto operativo.
+- Esta mejora conecta la matriz de inteligencia con la experiencia visible del dashboard.
+- No mueve lógica al motor todavía; es una mejora de explicación y usabilidad.
+
+---

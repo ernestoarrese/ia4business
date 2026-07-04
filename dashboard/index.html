@@ -194,6 +194,13 @@
 @media(max-width:1000px){.profile-detail-panel .profile-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:1000px){.profile-grid{grid-template-columns:1fr}}
 
+
+.risk-intel-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.risk-intel-card{border:1px solid var(--border);border-radius:14px;padding:12px;background:#fff}
+.risk-intel-card strong{display:block;font-size:12px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.risk-intel-card div{font-size:13px;color:#374151;line-height:1.35}
+@media(max-width:900px){.risk-intel-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -460,6 +467,39 @@ function render(data){
   else $("riskDetail").innerHTML='<div class="empty">No hay riesgos principales WARNING/CRITICAL para mostrar.</div>';
 }
 
+
+function riskCriteria(check){
+  const map={
+    RGB_OBJECT:"Detecta objetos definidos en RGB dentro del PDF.",
+    LOW_IMAGE_RESOLUTION:"Evalúa la resolución efectiva de imágenes contra el mínimo operativo del perfil.",
+    BARCODE_RISK:"Detecta candidatos barcode/QR como imagen de bajo DPI.",
+    SMALL_TEXT_RISK:"Evalúa texto vivo por debajo del tamaño mínimo configurado.",
+    FONT_NOT_EMBEDDED:"Detecta fuentes no embebidas en el PDF.",
+    HIGH_TAC_RISK:"Evalúa cobertura total de tinta contra el límite del perfil.",
+    OVERPRINT_RISK:"Detecta condiciones de sobreimpresión que requieren validación.",
+    SPOT_COLOR_RISK:"Evalúa tintas spot, blancos, nombres genéricos y posibles duplicidades.",
+    SEPARATION_COUNT_RISK:"Evalúa cantidad de separaciones imprimibles contra capacidad operativa.",
+    PDF_STRUCTURE_RISK:"Evalúa páginas vacías, tamaño, cantidad de objetos y complejidad del PDF."
+  };
+  return map[check]||"Criterio técnico definido por el motor Gate0.";
+}
+
+function riskOperationalContext(check){
+  const map={
+    RGB_OBJECT:"En packaging, RGB puede convertirse de forma no controlada y alterar el color final.",
+    LOW_IMAGE_RESOLUTION:"Una imagen de baja resolución puede pixelarse al tamaño final de impresión.",
+    BARCODE_RISK:"Barcode/QR es un elemento funcional: debe leerse, no solo verse bien.",
+    SMALL_TEXT_RISK:"Texto pequeño puede perder legibilidad, especialmente en negativo, multitinta o procesos exigentes.",
+    FONT_NOT_EMBEDDED:"Una fuente no embebida puede sustituirse y modificar textos, medidas o apariencia.",
+    HIGH_TAC_RISK:"TAC alto puede causar secado deficiente, repinte, ganancia o inestabilidad en prensa.",
+    OVERPRINT_RISK:"Una sobreimpresión incorrecta puede hacer desaparecer elementos o cambiar el resultado visual.",
+    SPOT_COLOR_RISK:"Spots mal nombrados o duplicados pueden generar tintas extra, errores de formulación o separaciones incorrectas.",
+    SEPARATION_COUNT_RISK:"Muchas separaciones aumentan complejidad, costo, setup y riesgo operativo.",
+    PDF_STRUCTURE_RISK:"Un PDF muy pesado, vacío o complejo puede fallar en RIP, trapping, imposición o procesamiento."
+  };
+  return map[check]||"Este hallazgo puede impactar calidad, producción o liberación del archivo.";
+}
+
 function renderRisks(risks){
   const box=$("riskList");
   if(!risks.length){box.innerHTML='<div class="empty">Sin riesgos principales.</div>';return}
@@ -503,6 +543,17 @@ function selectRisk(i){
       <div class="info-box">
         <b>Impacto en decisión</b>
         <div>${esc(r.decision_impact||"Contribuye a la evaluación general del archivo.")}</div>
+      </div>
+    </div>
+
+    <div class="risk-intel-grid">
+      <div class="risk-intel-card">
+        <strong>Criterio aplicado</strong>
+        <div>${esc(riskCriteria(r.check))}</div>
+      </div>
+      <div class="risk-intel-card">
+        <strong>Contexto operativo</strong>
+        <div>${esc(riskOperationalContext(r.check))}</div>
       </div>
     </div>
 
