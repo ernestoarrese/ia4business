@@ -11,11 +11,14 @@ Enriquece el JSON para dashboard, reportes y futuros agentes.
 CHECK_INTELLIGENCE = {
     "RGB_OBJECT": {
         "criteria": "Detecta objetos definidos en RGB dentro del PDF.",
-        "operational_context": "En packaging, RGB puede convertirse de forma no controlada y alterar el color final.",
-        "possible_impact": "Cambio de color, diferencia contra prueba, retrabajo o reclamo visual.",
+        "operational_context": "En packaging, RGB no es un espacio de salida directo para impresión. Si llega sin control, puede convertirse de forma automática durante RIP, edición o exportación, generando desviaciones frente al color aprobado.",
+        "possible_impact": "Cambio de color, diferencia contra prueba de color, variación entre archivos, retrabajo de preprensa, reclamo visual o necesidad de reconversión.",
         "fix_type": "assisted",
-        "current_limitation": "No clasifica intención del objeto ni decide automáticamente el perfil correcto.",
-        "future_evolution": "Conversión asistida con perfil aprobado y validación visual antes/después.",
+        "current_limitation": "Gate0 detecta presencia de RGB, pero no decide automáticamente el perfil correcto de conversión ni valida intención cromática del diseñador.",
+        "future_evolution": "Conversión asistida con perfil aprobado, comparación antes/después y validación contra objetivo de color o especificación del cliente.",
+        "conversion_guidance": "Convertir RGB a CMYK o spot validado según perfil de impresión, proceso, sustrato y condición de prensa.",
+        "color_management_guidance": "Evitar conversiones automáticas no controladas. La conversión debe hacerse con un perfil aprobado y validarse visualmente.",
+        "do_not_claim": "RGB Object v1 detecta riesgo de objetos RGB; no garantiza que el color final sea incorrecto ni corrige la conversión automáticamente.",
     },
     "LOW_IMAGE_RESOLUTION": {
         "criteria": "Evalúa resolución efectiva de imágenes al tamaño final de uso contra los mínimos del perfil operativo.",

@@ -483,3 +483,17 @@ Nunca una sin la otra.
 - No se reemplazaron comentarios expertos existentes.
 
 ---
+
+
+## RGB Object Intelligence Consolidation v1
+
+- Se consolidó `RGB_OBJECT` como check de inteligencia protegida.
+- `check_intelligence.py` conserva:
+    - riesgo de conversión RGB no controlada
+    - impacto en color aprobado / prueba de color
+    - necesidad de perfil aprobado
+    - limitación explícita de v1
+    - no prometer corrección automática
+- Con esto queda consolidada la inteligencia base de los checks actuales.
+
+---
