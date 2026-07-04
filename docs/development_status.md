@@ -395,3 +395,17 @@ Nunca una sin la otra.
 - No se reemplazaron comentarios expertos existentes.
 
 ---
+
+
+## High TAC Intelligence Consolidation v1
+
+- Se consolidó `HIGH_TAC_RISK` como check de inteligencia protegida.
+- `check_intelligence.py` conserva:
+    - límite TAC por perfil operativo
+    - impacto de secado, repinte, ganancia y estabilidad
+    - importancia del área afectada
+    - relación con negro enriquecido
+    - limitación explícita de v1
+- No se reemplazaron comentarios expertos existentes.
+
+---
