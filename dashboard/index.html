@@ -468,7 +468,10 @@ function render(data){
 }
 
 
-function riskCriteria(check){
+function riskCriteria(input){
+  const fromRisk=(input&&typeof input==="object")?(input.criteria||input.applied_criteria):"";
+  const check=(input&&typeof input==="object")?input.check:input;
+  if(fromRisk)return fromRisk;
   const map={
     RGB_OBJECT:"Detecta objetos definidos en RGB dentro del PDF.",
     LOW_IMAGE_RESOLUTION:"Evalúa la resolución efectiva de imágenes contra el mínimo operativo del perfil.",
@@ -484,7 +487,10 @@ function riskCriteria(check){
   return map[check]||"Criterio técnico definido por el motor Gate0.";
 }
 
-function riskOperationalContext(check){
+function riskOperationalContext(input){
+  const fromRisk=(input&&typeof input==="object")?(input.operational_context||input.context):"";
+  const check=(input&&typeof input==="object")?input.check:input;
+  if(fromRisk)return fromRisk;
   const map={
     RGB_OBJECT:"En packaging, RGB puede convertirse de forma no controlada y alterar el color final.",
     LOW_IMAGE_RESOLUTION:"Una imagen de baja resolución puede pixelarse al tamaño final de impresión.",
@@ -549,11 +555,11 @@ function selectRisk(i){
     <div class="risk-intel-grid">
       <div class="risk-intel-card">
         <strong>Criterio aplicado</strong>
-        <div>${esc(riskCriteria(r.check))}</div>
+        <div>${esc(riskCriteria(r))}</div>
       </div>
       <div class="risk-intel-card">
         <strong>Contexto operativo</strong>
-        <div>${esc(riskOperationalContext(r.check))}</div>
+        <div>${esc(riskOperationalContext(r))}</div>
       </div>
     </div>
 

@@ -13,6 +13,7 @@ from readiness_engine import build_readiness_assessment
 from readiness_summary import build_readiness_summary, build_fix_plan
 from config.spot_utils import build_spot_inventory
 from expert_comment_engine import enrich_report_with_expert_insights
+from check_intelligence import enrich_findings_with_check_intelligence
 from risk_evidence_engine import enrich_report_with_risk_evidence
 
 
@@ -1004,6 +1005,8 @@ def build_report(pdf_path):
 
     business_assessment = build_business_assessment(context_findings)
     priority_findings = business_assessment.get("priority_findings", [])
+    priority_findings = enrich_findings_with_check_intelligence(priority_findings)
+    business_assessment["priority_findings"] = priority_findings
 
     readiness_assessment = build_readiness_assessment(priority_findings)
     readiness_summary = build_readiness_summary(

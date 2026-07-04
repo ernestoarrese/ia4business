@@ -1,0 +1,117 @@
+"""
+Gate0 Check Intelligence v1
+
+Fuente central liviana para criterio, contexto, impacto, fix type,
+limitación actual y evolución futura por check.
+
+No reemplaza business_rules ni expert_comment_engine.
+Enriquece el JSON para dashboard, reportes y futuros agentes.
+"""
+
+CHECK_INTELLIGENCE = {
+    "RGB_OBJECT": {
+        "criteria": "Detecta objetos definidos en RGB dentro del PDF.",
+        "operational_context": "En packaging, RGB puede convertirse de forma no controlada y alterar el color final.",
+        "possible_impact": "Cambio de color, diferencia contra prueba, retrabajo o reclamo visual.",
+        "fix_type": "assisted",
+        "current_limitation": "No clasifica intención del objeto ni decide automáticamente el perfil correcto.",
+        "future_evolution": "Conversión asistida con perfil aprobado y validación visual antes/después.",
+    },
+    "LOW_IMAGE_RESOLUTION": {
+        "criteria": "Evalúa resolución efectiva de imágenes al tamaño final de uso.",
+        "operational_context": "Una imagen de baja resolución puede pixelarse o perder detalle al imprimirse.",
+        "possible_impact": "Pérdida visible de calidad, reclamo visual o necesidad de reemplazar imagen.",
+        "fix_type": "assisted",
+        "current_limitation": "No distingue completamente rol de imagen: producto, fondo, textura, logo o elemento decorativo.",
+        "future_evolution": "Clasificar rol visual y ajustar severidad según zona crítica del arte.",
+    },
+    "BARCODE_RISK": {
+        "criteria": "Detecta candidatos barcode/QR como imagen de bajo DPI.",
+        "operational_context": "Barcode y QR son elementos funcionales: deben poder leerse, no solo verse bien.",
+        "possible_impact": "Código ilegible, rechazo de calidad, bloqueo de lote, reproceso o problema logístico.",
+        "fix_type": "assisted",
+        "current_limitation": "No decodifica, no valida GS1, quiet zone, magnificación, contraste ni single ink.",
+        "future_evolution": "Validar single ink, quiet zone, magnificación, decodificación y cumplimiento GS1.",
+    },
+    "SMALL_TEXT_RISK": {
+        "criteria": "Evalúa texto vivo por debajo del tamaño mínimo configurado.",
+        "operational_context": "Texto pequeño puede perder legibilidad, más aún en negativo, multitinta o fondos complejos.",
+        "possible_impact": "Texto ilegible, incumplimiento legal, reclamo de marca o rechazo por calidad.",
+        "fix_type": "assisted",
+        "current_limitation": "No clasifica positivo, negativo, multitinta, fondo complejo o texto legal crítico.",
+        "future_evolution": "Clasificar contexto visual y proponer ajustes asistidos.",
+    },
+    "FONT_NOT_EMBEDDED": {
+        "criteria": "Detecta fuentes no embebidas en el PDF.",
+        "operational_context": "Una fuente no embebida puede sustituirse al abrir, procesar o ripear el archivo.",
+        "possible_impact": "Cambio tipográfico, texto corrido, error de layout o diferencia frente al arte aprobado.",
+        "fix_type": "manual",
+        "current_limitation": "Gate0 no corrige ni convierte fuentes automáticamente.",
+        "future_evolution": "Guía asistida y validación post-conversión.",
+    },
+    "HIGH_TAC_RISK": {
+        "criteria": "Evalúa cobertura total de tinta contra el límite del perfil operativo.",
+        "operational_context": "TAC alto puede causar secado deficiente, repinte, ganancia o inestabilidad en prensa.",
+        "possible_impact": "Defectos de impresión, variabilidad, rechazo interno o necesidad de reprocesar separación.",
+        "fix_type": "assisted",
+        "current_limitation": "No modifica separaciones ni propone receta exacta de reducción.",
+        "future_evolution": "Sugerir estrategia de reducción por perfil, zona, proceso y objetivo visual.",
+    },
+    "OVERPRINT_RISK": {
+        "criteria": "Detecta condiciones de sobreimpresión que requieren validación.",
+        "operational_context": "Una sobreimpresión incorrecta puede hacer desaparecer elementos o cambiar apariencia.",
+        "possible_impact": "Elementos perdidos, textos invisibles, cambio de color o error en blanco.",
+        "fix_type": "assisted",
+        "current_limitation": "Detección parcial; no siempre identifica sobreimpresión por objeto.",
+        "future_evolution": "Comparación visual, mapa por objeto y fix asistido para casos seguros.",
+    },
+    "SPOT_COLOR_RISK": {
+        "criteria": "Evalúa tintas spot, blancos, nombres genéricos, duplicidades y separaciones técnicas.",
+        "operational_context": "Spots mal nombrados o duplicados pueden generar tintas extra o errores de formulación.",
+        "possible_impact": "Tinta incorrecta, costo adicional, separación duplicada o setup innecesario.",
+        "fix_type": "assisted",
+        "current_limitation": "No conoce intención completa del diseño ni decide qué spot eliminar.",
+        "future_evolution": "Normalización asistida, equivalencias y sugerencia de racionalización.",
+    },
+    "SEPARATION_COUNT_RISK": {
+        "criteria": "Evalúa cantidad de separaciones imprimibles contra umbrales del perfil.",
+        "operational_context": "Más separaciones aumentan complejidad, costo, setup y riesgo operativo.",
+        "possible_impact": "Trabajo difícil de producir, mayor tiempo de preparación o incompatibilidad con prensa.",
+        "fix_type": "assisted",
+        "current_limitation": "No decide qué tinta eliminar ni conoce restricciones reales de cada prensa.",
+        "future_evolution": "Sugerir candidatos de racionalización o conversión según cliente, prensa y perfil.",
+    },
+    "PDF_STRUCTURE_RISK": {
+        "criteria": "Evalúa páginas vacías, tamaño de archivo, objetos, imágenes y complejidad estructural.",
+        "operational_context": "PDFs vacíos, pesados o complejos pueden fallar en RIP, trapping, imposición o edición.",
+        "possible_impact": "Error de procesamiento, lentitud, archivo corrupto o necesidad de reconstrucción.",
+        "fix_type": "manual",
+        "current_limitation": "No repara estructura PDF automáticamente.",
+        "future_evolution": "Limpieza estructural asistida y validación antes/después.",
+    },
+}
+
+
+def get_check_intelligence(check):
+    return CHECK_INTELLIGENCE.get(check, {
+        "criteria": "Criterio técnico definido por Gate0.",
+        "operational_context": "Este hallazgo puede impactar calidad, producción o liberación del archivo.",
+        "possible_impact": "Riesgo operativo o de calidad pendiente de clasificación.",
+        "fix_type": "manual",
+        "current_limitation": "Inteligencia específica pendiente de consolidar.",
+        "future_evolution": "Definir evolución del check según validación de producto.",
+    })
+
+
+def enrich_finding_with_check_intelligence(finding):
+    enriched = finding.copy()
+    intelligence = get_check_intelligence(enriched.get("check"))
+
+    for key, value in intelligence.items():
+        enriched.setdefault(key, value)
+
+    return enriched
+
+
+def enrich_findings_with_check_intelligence(findings):
+    return [enrich_finding_with_check_intelligence(f) for f in findings]

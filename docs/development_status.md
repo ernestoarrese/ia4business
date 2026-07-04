@@ -309,3 +309,13 @@ Nunca una sin la otra.
 - Mantiene la inteligencia del producto documentada antes de moverla al motor.
 
 ---
+
+
+## Check Intelligence JSON v1
+
+- Se creó `check_intelligence.py` como fuente central liviana de criterio, contexto, impacto, fix type, limitación y futuro por check.
+- El reporte JSON enriquece `priority_findings` con esta inteligencia.
+- El dashboard ahora puede leer criterio y contexto desde el JSON, manteniendo fallback visual.
+- Esto prepara la transición futura hacia una matriz consumible por motor/agentes.
+
+---
