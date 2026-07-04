@@ -468,3 +468,18 @@ Nunca una sin la otra.
 - No se reemplazaron comentarios expertos existentes.
 
 ---
+
+
+## Low Image Resolution Intelligence Consolidation v1
+
+- Se consolidó `LOW_IMAGE_RESOLUTION` como check de inteligencia protegida.
+- `check_intelligence.py` conserva:
+    - DPI efectivo al tamaño final
+    - mínimos del perfil operativo
+    - importancia del área afectada
+    - rol visual de imagen como limitación actual
+    - relación con barcode dedupe
+    - limitación explícita de v1
+- No se reemplazaron comentarios expertos existentes.
+
+---
