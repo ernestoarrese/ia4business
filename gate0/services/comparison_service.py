@@ -5,6 +5,22 @@ from gate0.models.comparison_result import ComparisonResult
 
 
 class ComparisonService:
+    def normalize_font_name(self, font_name: str) -> str:
+        """
+        Normaliza nombres de fuentes PDF ignorando prefijos de subset.
+
+        Ejemplo:
+        MYVNQU+FrutigerLTStd-BoldCn -> FrutigerLTStd-BoldCn
+        """
+        font_name = str(font_name or "").strip()
+
+        if "+" in font_name:
+            prefix, base = font_name.split("+", 1)
+            if len(prefix) == 6 and prefix.isalpha():
+                return base
+
+        return font_name
+
     def normalize_stem(self, filename: str) -> str:
         stem = Path(filename).stem.lower()
         stem = re.sub(r"(curvas|curve|final|arte|art|print|impresion|produccion|prod)", "", stem)
@@ -81,8 +97,17 @@ class ComparisonService:
             penalty=20,
         )
 
-        left_fonts = sorted({f.get("font_name") for f in left.live_fonts if f.get("font_name")})
-        right_fonts = sorted({f.get("font_name") for f in right.live_fonts if f.get("font_name")})
+        left_fonts = sorted({
+            self.normalize_font_name(f.get("font_name"))
+            for f in left.live_fonts
+            if f.get("font_name")
+        })
+
+        right_fonts = sorted({
+            self.normalize_font_name(f.get("font_name"))
+            for f in right.live_fonts
+            if f.get("font_name")
+        })
 
         add_check(
             "Fonts",
