@@ -176,6 +176,67 @@ def check_font_embedding(live_fonts):
     return findings
 
 
+
+def check_small_text(page, page_number, warning_threshold_pt=5.0, critical_threshold_pt=4.0, max_findings=25):
+    """
+    Detecta texto vivo pequeño usando PyMuPDF page.get_text("dict").
+
+    v1:
+    - Solo texto vivo.
+    - No detecta texto convertido a curvas.
+    - No evalúa todavía si es positivo/negativo.
+    - No cruza todavía contra fondo.
+    """
+    findings = []
+
+    try:
+        text_dict = page.get_text("dict")
+    except Exception:
+        return findings
+
+    for block in text_dict.get("blocks", []):
+        if block.get("type") != 0:
+            continue
+
+        for line in block.get("lines", []):
+            for span in line.get("spans", []):
+                raw_text = str(span.get("text", "")).strip()
+                if not raw_text:
+                    continue
+
+                try:
+                    size_pt = float(span.get("size") or 0)
+                except Exception:
+                    continue
+
+                if size_pt <= 0 or size_pt >= warning_threshold_pt:
+                    continue
+
+                severity = "HIGH" if size_pt < critical_threshold_pt else "MEDIUM"
+                text_height_mm = round(size_pt * 0.352778, 2)
+                sample_text = raw_text[:80]
+                bbox = span.get("bbox") or []
+
+                findings.append({
+                    "check": "SMALL_TEXT_RISK",
+                    "severity": severity,
+                    "page": page_number,
+                    "value": f"{sample_text} | {size_pt:.2f} pt",
+                    "detail": f"Texto vivo pequeño detectado: {size_pt:.2f} pt / {text_height_mm:.2f} mm aprox.",
+                    "sample_text": sample_text,
+                    "font_size_pt": round(size_pt, 2),
+                    "text_height_mm": text_height_mm,
+                    "font_name": span.get("font"),
+                    "bbox": [round(float(x), 2) for x in bbox] if bbox else [],
+                    "warning_threshold_pt": warning_threshold_pt,
+                    "critical_threshold_pt": critical_threshold_pt,
+                })
+
+                if len(findings) >= max_findings:
+                    return findings
+
+    return findings
+
 def check_rgb_objects(page_stream, page_number):
     """
     Detecta operadores RGB simples en content stream.
@@ -707,6 +768,7 @@ def analyze_pdf(pdf_path):
 
         findings.extend(check_rgb_objects(page_stream, page_number))
         findings.extend(check_low_resolution_images(page, page_number))
+        findings.extend(check_small_text(page, page_number))
         findings.extend(check_high_tac(page_stream, page_number))
 
     findings.extend(check_overprint_risk(doc))

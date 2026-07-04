@@ -112,6 +112,34 @@ def evaluate_low_image_resolution(finding, profile):
     return apply_business_fields(finding, sev, "Resolución / Imagen", reason, p, "Revisar resolución efectiva y solicitar imagen en mayor resolución si aplica.", w)
 
 
+
+def evaluate_small_text_risk(finding, profile):
+    size_pt = float(finding.get("font_size_pt") or 0)
+    height_mm = float(finding.get("text_height_mm") or 0)
+    sample = finding.get("sample_text") or finding.get("value") or ""
+
+    if size_pt <= 0:
+        sev = "INFO"
+    elif size_pt < 4:
+        sev = "CRITICAL"
+    elif size_pt < 5:
+        sev = "WARNING"
+    else:
+        sev = "PASS"
+
+    reason = (
+        f"Texto vivo pequeño detectado: {size_pt:.2f} pt / {height_mm:.2f} mm aprox. "
+        f"Muestra: '{sample[:40]}'."
+    )
+
+    action = (
+        "Revisar legibilidad según proceso, sustrato y condición de impresión. "
+        "Validar especialmente legales, ingredientes, advertencias y textos negativos."
+    )
+
+    p, w = severity_meta(sev, {"CRITICAL": 35, "WARNING": 18, "INFO": 1})
+    return apply_business_fields(finding, sev, "Texto / Legibilidad", reason, p, action, w)
+
 def evaluate_font_not_embedded(finding, profile):
     return apply_business_fields(
         finding,
@@ -261,6 +289,8 @@ def enrich_finding(finding, profile):
         return evaluate_rgb_object(finding.copy(), profile)
     if check == "LOW_IMAGE_RESOLUTION":
         return evaluate_low_image_resolution(finding.copy(), profile)
+    if check == "SMALL_TEXT_RISK":
+        return evaluate_small_text_risk(finding.copy(), profile)
     if check == "FONT_NOT_EMBEDDED":
         return evaluate_font_not_embedded(finding.copy(), profile)
     if check == "HIGH_TAC_RISK":

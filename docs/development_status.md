@@ -126,6 +126,23 @@ Siempre se priorizará Bash sobre edición manual para reducir errores.
 
 ---
 
+### Text Intelligence
+
+- Small Text Intelligence v1
+- Detección de texto vivo menor a 5 pt
+- Clasificación inicial:
+    - < 4 pt: CRITICAL
+    - < 5 pt: WARNING
+- Evidencia:
+    - página
+    - muestra de texto
+    - tamaño en pt
+    - altura aproximada en mm
+    - fuente
+    - bbox
+
+---
+
 ### Artwork Consistency
 
 - Detección AI/PDF

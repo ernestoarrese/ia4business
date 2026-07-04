@@ -109,6 +109,43 @@ def _build_tac_insight(top_risk, related):
     }
 
 
+
+def _build_small_text_insight(top_risk, related):
+    selected = related[0] if related else top_risk
+    size_pt = selected.get("font_size_pt") or top_risk.get("font_size_pt")
+    height_mm = selected.get("text_height_mm") or top_risk.get("text_height_mm")
+    sample = selected.get("sample_text") or selected.get("value") or ""
+
+    if size_pt is not None:
+        brief = (
+            f"Se detectó texto vivo pequeño de {_fmt(size_pt, 1)} pt"
+            f"{f' / {_fmt(height_mm, 2)} mm aprox.' if height_mm is not None else ''}. "
+            "Puede perder legibilidad o cerrarse durante impresión. Conviene revisar si corresponde a legales, ingredientes, advertencias o texto negativo."
+        )
+        found = f"Texto pequeño detectado: {_fmt(size_pt, 1)} pt."
+    else:
+        brief = "Se detectó texto vivo pequeño. Puede generar problemas de legibilidad en impresión."
+        found = "Se detectó texto vivo pequeño."
+
+    return {
+        "brief_comment": brief,
+        "what_found": found,
+        "why_it_matters": "En packaging, textos muy pequeños pueden perder definición por ganancia, registro, sustrato, anilox, cilindro, trama o condición de impresión.",
+        "possible_impact": "Puede afectar legibilidad de legales, ingredientes, advertencias, claims o información regulatoria.",
+        "recommended_action": selected.get("action") or selected.get("recommendation") or "Aumentar tamaño, simplificar tipografía o validar mínimo técnico según proceso y condición de impresión.",
+        "urgency": _severity_to_urgency(_get_severity(top_risk)),
+        "evidence": {
+            "font_size_pt": size_pt,
+            "text_height_mm": height_mm,
+            "sample_text": sample[:80],
+            "font_name": selected.get("font_name"),
+            "bbox": selected.get("bbox"),
+            "page": top_risk.get("page"),
+            "rule_applied": "SMALL_TEXT_RISK",
+            "confidence": "Media"
+        }
+    }
+
 def _build_font_insight(top_risk, related):
     count = top_risk.get("occurrence_count") or len(related) or 1
     font_names = [f.get("font_name") or f.get("value") for f in related if f.get("font_name") or f.get("value")]
@@ -230,6 +267,8 @@ def build_expert_insight(top_risk, report_data):
         return _build_lowres_insight(top_risk, related)
     if check == "HIGH_TAC_RISK":
         return _build_tac_insight(top_risk, related)
+    if check == "SMALL_TEXT_RISK":
+        return _build_small_text_insight(top_risk, related)
     if check == "FONT_NOT_EMBEDDED":
         return _build_font_insight(top_risk, related)
     if check == "SPOT_COLOR_RISK":
