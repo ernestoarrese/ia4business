@@ -347,3 +347,20 @@ Nunca una sin la otra.
 - No modifica lógica ni comentarios expertos.
 
 ---
+
+
+## Barcode Intelligence Consolidation v1
+
+- Se consolidó `BARCODE_RISK` como primer check piloto de inteligencia protegida.
+- `check_intelligence.py` ahora conserva:
+    - criterio aplicado
+    - contexto operativo
+    - impacto posible
+    - limitación actual
+    - evolución futura
+    - guía de preprensa
+    - recomendación de una sola tinta
+    - advertencia explícita de no certificar lectura/GS1 en v1
+- No se reemplazaron comentarios expertos existentes.
+
+---
