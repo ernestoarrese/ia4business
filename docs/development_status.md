@@ -513,3 +513,16 @@ Nunca una sin la otra.
 - Esto protege los comentarios y criterios ya trabajados sin duplicarlos manualmente en UI.
 
 ---
+
+## Backlog UX — Top Risk Detail compacto
+
+- El detalle de Top Risk ya muestra inteligencia completa, evidencia, criterio, contexto, impacto, limitación, evolución futura, guías específicas y acción.
+- Para primera etapa se mantiene así porque aporta trazabilidad completa.
+- Backlog futuro:
+    - compactar visualmente la vista.
+    - reducir redundancia.
+    - dejar visible solo resumen, evidencia clave, criterio/contexto y acción.
+    - mover impacto, limitación, evolución futura y guías específicas a secciones expandibles.
+- No implementar ahora; validar primero con uso real.
+
+---
