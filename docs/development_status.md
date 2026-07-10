@@ -539,3 +539,22 @@ Nunca una sin la otra.
 - No se modificó motor ni inteligencia; solo presentación.
 
 ---
+
+
+## Process Color Detection v1
+
+- Gate0 deja de asumir CMYK completo para el conteo operativo de separaciones.
+- `SEPARATION_COUNT_RISK` ahora calcula:
+    - colores de proceso detectados
+    - spots imprimibles
+    - total operativo = proceso detectado + spots imprimibles
+- Nuevos campos:
+    - `process_colors_detected`
+    - `process_color_count`
+    - `process_count_source`
+    - `process_detection_confidence`
+    - `printable_spot_count`
+- Si no se detectan colores de proceso, no se suman 4 automáticamente.
+- Limitación v1: detección basada en operadores CMYK de content stream; no certifica todos los casos complejos ni imágenes raster.
+
+---

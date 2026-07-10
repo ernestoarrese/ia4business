@@ -428,7 +428,7 @@ def evaluate_spot_color_risk(finding, profile):
 
 def evaluate_separation_count_risk(finding, profile):
     count = int(finding.get("printable_separation_count") or 0)
-    source = finding.get("process_count_source", "ASSUMED_CMYK")
+    source = finding.get("process_count_source", "NO_PROCESS_COLORS_DETECTED")
 
     if count <= 8:
         sev = "PASS"

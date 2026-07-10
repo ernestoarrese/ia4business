@@ -593,6 +593,68 @@ def check_white_ink_risk(separations):
     return findings
 
 
+
+
+def detect_process_colors_from_pdf(pdf_path, min_channel_percent=0.1):
+    """
+    Detecta colores de proceso usados en content streams mediante operadores CMYK:
+    - k = fill
+    - K = stroke
+
+    Process Color Detection v1:
+    - No asume CMYK completo.
+    - Detecta C/M/Y/K solo si encuentra valores > min_channel_percent.
+    - No certifica uso en imágenes raster ni todos los casos PDF complejos.
+    """
+    detected = set()
+
+    patterns = [
+        (r"(\d*\.?\d+)\s+(\d*\.?\d+)\s+(\d*\.?\d+)\s+(\d*\.?\d+)\s+k", "fill"),
+        (r"(\d*\.?\d+)\s+(\d*\.?\d+)\s+(\d*\.?\d+)\s+(\d*\.?\d+)\s+K", "stroke"),
+    ]
+
+    try:
+        doc = fitz.open(pdf_path)
+    except Exception:
+        return []
+
+    try:
+        for page in doc:
+            stream_text = ""
+
+            try:
+                contents = page.get_contents() or []
+            except Exception:
+                contents = []
+
+            for xref in contents:
+                try:
+                    raw = doc.xref_stream(xref)
+                    if raw:
+                        stream_text += raw.decode("latin-1", errors="ignore") + "\n"
+                except Exception:
+                    continue
+
+            for pattern, _mode in patterns:
+                for match in re.finditer(pattern, stream_text):
+                    values = [float(x) for x in match.groups()]
+
+                    # PDF puede expresar CMYK en 0-1. Convertimos a porcentaje.
+                    if max(values) <= 1:
+                        values = [v * 100 for v in values]
+
+                    for name, value in zip(["C", "M", "Y", "K"], values):
+                        if value > min_channel_percent:
+                            detected.add(name)
+    finally:
+        try:
+            doc.close()
+        except Exception:
+            pass
+
+    order = ["C", "M", "Y", "K"]
+    return [c for c in order if c in detected]
+
 def check_spot_color_risk(separations):
     findings = []
     inventory = build_spot_inventory(separations)
@@ -733,16 +795,32 @@ def check_spot_color_risk(separations):
     return findings
 
 
-def check_separation_count_risk(separations):
+def check_separation_count_risk(separations, process_colors=None):
     findings = []
     inventory = build_spot_inventory(separations)
 
-    printable_count = inventory["printable_separation_count"]
+    process_colors = process_colors or []
+    process_colors = [c for c in ["C", "M", "Y", "K"] if c in set(process_colors)]
+
+    process_count = len(process_colors)
+    printable_spot_count = inventory["printable_spot_count"]
+    printable_count = process_count + printable_spot_count
+
+    if process_count > 0:
+        process_count_source = "DETECTED_PROCESS_COLORS"
+        process_detection_confidence = "MEDIUM"
+    else:
+        process_count_source = "NO_PROCESS_COLORS_DETECTED"
+        process_detection_confidence = "LOW"
 
     context_data = {
         "printable_separation_count": printable_count,
-        "process_count": inventory["process_count"],
-        "process_count_source": inventory["process_count_source"],
+        "process_count": process_count,
+        "process_color_count": process_count,
+        "process_colors_detected": process_colors,
+        "process_count_source": process_count_source,
+        "process_detection_confidence": process_detection_confidence,
+        "printable_spot_count": printable_spot_count,
         "white_detected": inventory["white_spot_count"] > 0,
         "varnish_detected": inventory["varnish_spot_count"] > 0,
         "technical_separations_detected": inventory["technical_spot_count"] > 0
@@ -770,7 +848,10 @@ def check_separation_count_risk(separations):
         "check": "SEPARATION_COUNT_RISK",
         "severity": severity,
         "detail": detail,
-        "value": f"printable_separation_count={printable_count}",
+        "value": (
+            f"printable_separation_count={printable_count} "
+            f"(process={process_count}, spots={printable_spot_count})"
+        ),
         "recommendation": recommendation,
         **context_data,
         "phase": "MVP"
@@ -988,6 +1069,7 @@ def build_report(pdf_path):
     input_path = validate_input_file(pdf_path)
 
     separations = detect_separations(str(input_path))
+    process_colors = detect_process_colors_from_pdf(str(input_path))
     page_boxes = detect_page_boxes(str(input_path))
     live_fonts = detect_live_fonts(str(input_path))
     pdf_structure = analyze_pdf_structure(str(input_path))
@@ -998,7 +1080,7 @@ def build_report(pdf_path):
     findings.extend(check_font_embedding(live_fonts))
     findings.extend(check_white_ink_risk(separations))
     findings.extend(check_spot_color_risk(separations))
-    findings.extend(check_separation_count_risk(separations))
+    findings.extend(check_separation_count_risk(separations, process_colors=process_colors))
     findings.extend(check_pdf_structure_risk(pdf_structure))
 
     context_findings = enrich_context(findings, str(input_path))
