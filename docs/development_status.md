@@ -558,3 +558,23 @@ Nunca una sin la otra.
 - Limitación v1: detección basada en operadores CMYK de content stream; no certifica todos los casos complejos ni imágenes raster.
 
 ---
+
+
+## Non-printable Separation Classification v1
+
+- Gate0 excluye separaciones de plano/técnicas del conteo operativo.
+- Ejemplos no productivos:
+    - All
+    - Pie
+    - Sustrato / Substrate
+    - Texto / Text
+    - Plano
+    - Technical / Technical Drawing
+    - Dimensions
+    - Mechanical Artwork
+    - Dieline / Troquel / Corte / Guía
+- `Detectadas por parser` puede ser mayor que `Conteo operativo`.
+- `Conteo operativo` debe contar solo proceso detectado + spots imprimibles.
+- Se corrige fallback para que cero sea valor válido y no caiga a total detectado.
+
+---

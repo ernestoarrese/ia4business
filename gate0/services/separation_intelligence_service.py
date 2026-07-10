@@ -101,7 +101,7 @@ class SeparationIntelligenceService:
         process_detected = [i["name"] for i in items if i["type"] == "Process"]
 
         detected_total = len(items)
-        operational_total = printable_separation_count or detected_total
+        operational_total = detected_total if printable_separation_count is None else printable_separation_count
 
         return {
             "total": detected_total,

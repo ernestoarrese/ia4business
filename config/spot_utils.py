@@ -128,3 +128,97 @@ def build_spot_inventory(separations, config_path=DEFAULT_CONFIG_PATH):
         "suspicious_spots": suspicious_spots,
         "duplicate_groups": group_equivalent_spots(separations)
     }
+
+
+# Gate0 non-printable separation classification wrapper v1
+# Mantiene el parser completo, pero excluye separaciones de plano/técnicas del conteo operativo.
+import re as _gate0_re
+import unicodedata as _gate0_unicodedata
+
+def _gate0_normalize_nonprintable_name(name):
+    value = str(name or "").strip().lower()
+    value = "".join(
+        c for c in _gate0_unicodedata.normalize("NFD", value)
+        if _gate0_unicodedata.category(c) != "Mn"
+    )
+    value = _gate0_re.sub(r"[^a-z0-9]+", "", value)
+    return value
+
+def _gate0_is_non_printable_separation(name):
+    normalized = _gate0_normalize_nonprintable_name(name)
+
+    exact = {
+        "all",
+        "pie",
+        "texto",
+        "text",
+        "sustrato",
+        "substrate",
+    }
+
+    if normalized in exact:
+        return True
+
+    keywords = [
+        "plano",
+        "dieline",
+        "troquel",
+        "corte",
+        "cut",
+        "cutter",
+        "knife",
+        "guia",
+        "guide",
+        "dimension",
+        "dimensions",
+        "mechanical",
+        "mechanicalartwork",
+        "technicaldrawing",
+        "technical",
+    ]
+
+    return any(keyword in normalized for keyword in keywords)
+
+_GATE0_ORIGINAL_BUILD_SPOT_INVENTORY = build_spot_inventory
+
+def build_spot_inventory(separations, config_path=DEFAULT_CONFIG_PATH):
+    inventory = _GATE0_ORIGINAL_BUILD_SPOT_INVENTORY(separations, config_path=config_path)
+    spots = list(inventory.get("spots", []))
+
+    for item in spots:
+        name = item.get("original_name") or item.get("name") or ""
+        if _gate0_is_non_printable_separation(name):
+            item["category"] = "TECHNICAL"
+            item["is_printable"] = False
+        elif item.get("category") in {"PRINTABLE", "WHITE", "VARNISH"}:
+            item["is_printable"] = True
+
+    printable_categories = {"PRINTABLE", "WHITE", "VARNISH"}
+    technical_spots = [i for i in spots if i.get("category") == "TECHNICAL"]
+    white_spots = [i for i in spots if i.get("category") == "WHITE"]
+    varnish_spots = [i for i in spots if i.get("category") == "VARNISH"]
+    printable_spots = [
+        i for i in spots
+        if i.get("category") in printable_categories
+        and not _gate0_is_non_printable_separation(i.get("original_name") or i.get("name") or "")
+    ]
+
+    inventory["spots"] = spots
+    inventory["technical_spots"] = technical_spots
+    inventory["white_spots"] = white_spots
+    inventory["varnish_spots"] = varnish_spots
+    inventory["printable_spots"] = printable_spots
+    inventory["technical_spot_count"] = len(technical_spots)
+    inventory["white_spot_count"] = len(white_spots)
+    inventory["varnish_spot_count"] = len(varnish_spots)
+    inventory["printable_spot_count"] = len(printable_spots)
+    inventory["printable_separation_count"] = len(printable_spots)
+
+    if "suspicious_spots" in inventory:
+        inventory["suspicious_spots"] = [
+            i for i in inventory["suspicious_spots"]
+            if not _gate0_is_non_printable_separation(i.get("original_name") or i.get("name") or "")
+        ]
+
+    return inventory
+

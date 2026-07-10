@@ -40,3 +40,45 @@ def test_spot_duplicate_and_suspicious():
 
     assert "Posible duplicidad de tinta spot por nombres inconsistentes." in details
     assert "Spot con nombre genérico o sospechoso detectado." in details
+
+
+def test_separation_count_excludes_plan_and_technical_separations():
+    separations = [
+        "All",
+        "Blanco calzado",
+        "PANTONE 2995 C",
+        "PANTONE Reflex Blue C",
+        "Pie",
+        "Sustrato",
+        "Texto",
+    ]
+
+    findings = check_separation_count_risk(separations, process_colors=[])
+    item = findings[0]
+
+    assert item["printable_spot_count"] == 3
+    assert item["printable_separation_count"] == 3
+    assert item["process_count"] == 0
+    assert item["process_count_source"] == "NO_PROCESS_COLORS_DETECTED"
+    assert item["technical_separations_detected"] is True
+
+
+def test_separation_count_k_plus_printable_spots_excludes_plan():
+    separations = [
+        "All",
+        "Blanco calzado",
+        "PANTONE 2995 C",
+        "PANTONE Reflex Blue C",
+        "Pie",
+        "Sustrato",
+        "Texto",
+    ]
+
+    findings = check_separation_count_risk(separations, process_colors=["K"])
+    item = findings[0]
+
+    assert item["process_colors_detected"] == ["K"]
+    assert item["process_count"] == 1
+    assert item["printable_spot_count"] == 3
+    assert item["printable_separation_count"] == 4
+

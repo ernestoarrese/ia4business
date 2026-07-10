@@ -357,12 +357,17 @@ def run_gate0_analysis(input_file_path, original_filename, client, session_id, i
         data.get("separations", []),
         printable_separation_count=(
             separation_context.get("printable_separation_count")
-            or data.get("printable_separation_count")
-            or data.get("number_of_separations")
+            if separation_context.get("printable_separation_count") is not None
+            else (
+                data.get("printable_separation_count")
+                if data.get("printable_separation_count") is not None
+                else data.get("number_of_separations")
+            )
         ),
         process_count=(
             separation_context.get("process_count")
-            or data.get("process_count")
+            if separation_context.get("process_count") is not None
+            else data.get("process_count")
         ),
         process_count_source=(
             separation_context.get("process_count_source")
