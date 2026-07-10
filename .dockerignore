@@ -1,0 +1,30 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+.env
+.venv/
+venv/
+env/
+backups/
+data/runtime/*
+!data/runtime/.gitkeep
+data/input/*
+!data/input/.gitkeep
+data/output/*
+!data/output/.gitkeep
+data/history/analysis_history.csv
+*.zip
+*.pdf
+app_backup_before_*.py
+gate0_check_backup_*.py
+expert_comment_engine_backup_*.py
+readiness_summary_backup_*.py
+gate0_orchestrator_backup_*.py
+Part 1 - Optimizing Business Processes/
+Part 2 - Minimizing Costs/
+Part 3 - Maximizing Revenues/

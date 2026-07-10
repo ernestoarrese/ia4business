@@ -49,6 +49,11 @@ orchestrator = Gate0Orchestrator(ROOT)
 
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "gate0"}
+
+
 
 def cleanup_old_runtime_files():
     runtime_service.cleanup_old_files()

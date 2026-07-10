@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: gate0-demo
+    env: docker
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: GATE0_RUNTIME_TTL_SECONDS
+        value: 1800
