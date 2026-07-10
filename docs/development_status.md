@@ -526,3 +526,16 @@ Nunca una sin la otra.
 - No implementar ahora; validar primero con uso real.
 
 ---
+
+
+## Compact Top Risk UX v1
+
+- Se compactó el detalle de Top Risk para reducir saturación visual.
+- La evidencia técnica queda en desplegable.
+- Criterio, contexto, impacto, limitación y evolución futura quedan en desplegable.
+- Las guías específicas del check quedan en desplegable.
+- El bloque de acción recomendada y tipo de corrección se mantiene visible.
+- Categorías técnicas como Technical / Dimensions / Mechanical Artwork / Substrate bajan protagonismo visual cuando aparecen en el dashboard.
+- No se modificó motor ni inteligencia; solo presentación.
+
+---

@@ -218,6 +218,19 @@
 .guidance-item b{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
 .guidance-item div{font-size:13px;color:#374151;line-height:1.35}
 
+
+/* Compact Top Risk UX v1 */
+.compact-details{border:1px solid var(--border);border-radius:14px;background:#fff;margin:12px 0;overflow:hidden}
+.compact-details summary{cursor:pointer;padding:12px;font-size:12px;font-weight:900;text-transform:uppercase;color:var(--muted);list-style:none}
+.compact-details summary::-webkit-details-marker{display:none}
+.compact-details summary:after{content:"Ver más";float:right;color:#111827;font-size:11px}
+.compact-details[open] summary:after{content:"Ocultar"}
+.compact-details-body{padding:0 12px 12px 12px}
+#userMessage,#summaryMessage,.user-message,.hero-message{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.technical-muted-text{color:#9ca3af!important;font-weight:700!important}
+.technical-secondary{opacity:.62}
+.risk-intel-grid.compact{grid-template-columns:1fr}
+
 </style>
 </head>
 <body>
@@ -480,6 +493,7 @@ function render(data){
   renderRisks(currentRisks);
   renderOperationalProfile(data);
   renderSeparations(data);
+  compactTechnicalSeparationLabels();
   if(currentRisks.length) selectRisk(0);
   else $("riskDetail").innerHTML='<div class="empty">No hay riesgos principales WARNING/CRITICAL para mostrar.</div>';
 }
@@ -531,26 +545,28 @@ function buildEvidenceItems(r,insight){
   return items.slice(0,10);
 }
 
+
 function renderEvidencePanel(r,insight){
   const items=buildEvidenceItems(r,insight);
 
   if(!items.length)return "";
 
   return `
-    <div class="evidence-panel">
-      <div class="evidence-title">Evidencia técnica</div>
-      <div class="evidence-grid">
-        ${items.map(item=>`
-          <div class="evidence-item">
-            <b>${esc(item.label)}</b>
-            <span>${esc(item.value)}</span>
-          </div>
-        `).join("")}
+    <details class="compact-details">
+      <summary>Evidencia técnica</summary>
+      <div class="compact-details-body">
+        <div class="evidence-grid">
+          ${items.map(item=>`
+            <div class="evidence-item">
+              <b>${esc(item.label)}</b>
+              <span>${esc(item.value)}</span>
+            </div>
+          `).join("")}
+        </div>
       </div>
-    </div>
+    </details>
   `;
 }
-
 
 function intelligenceValue(r,key,fallback=""){
   if(!r)return fallback;
@@ -613,22 +629,25 @@ function buildGuidanceItems(r){
   return items;
 }
 
+
 function renderGuidancePanel(r){
   const items=buildGuidanceItems(r);
   if(!items.length)return "";
 
   return `
-    <div class="guidance-panel">
-      <div class="guidance-title">Guías específicas del check</div>
-      <div class="guidance-list">
-        ${items.map(item=>`
-          <div class="guidance-item">
-            <b>${esc(item.label)}</b>
-            <div>${esc(item.value)}</div>
-          </div>
-        `).join("")}
+    <details class="compact-details">
+      <summary>Guías específicas del check</summary>
+      <div class="compact-details-body">
+        <div class="guidance-list">
+          ${items.map(item=>`
+            <div class="guidance-item">
+              <b>${esc(item.label)}</b>
+              <div>${esc(item.value)}</div>
+            </div>
+          `).join("")}
+        </div>
       </div>
-    </div>
+    </details>
   `;
 }
 
@@ -668,6 +687,62 @@ function riskOperationalContext(input){
     PDF_STRUCTURE_RISK:"Un PDF muy pesado, vacío o complejo puede fallar en RIP, trapping, imposición o procesamiento."
   };
   return map[check]||"Este hallazgo puede impactar calidad, producción o liberación del archivo.";
+}
+
+
+function renderIntelligenceDetails(r){
+  return `
+    <details class="compact-details">
+      <summary>Criterio, contexto y alcance</summary>
+      <div class="compact-details-body">
+        <div class="risk-intel-grid compact">
+          <div class="risk-intel-card">
+            <strong>Criterio aplicado</strong>
+            <div>${esc(riskCriteria(r))}</div>
+          </div>
+          <div class="risk-intel-card">
+            <strong>Contexto operativo</strong>
+            <div>${esc(riskOperationalContext(r))}</div>
+          </div>
+          <div class="risk-intel-card">
+            <strong>Impacto posible</strong>
+            <div>${esc(riskPossibleImpact(r))}</div>
+          </div>
+          <div class="risk-intel-card">
+            <strong>Limitación actual</strong>
+            <div>${esc(riskCurrentLimitation(r))}</div>
+          </div>
+          <div class="risk-intel-card">
+            <strong>Evolución futura</strong>
+            <div>${esc(riskFutureEvolution(r))}</div>
+          </div>
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function compactTechnicalSeparationLabels(){
+  const terms=[
+    "Technical",
+    "Dimensions",
+    "Mechanical Artwork",
+    "Mechanical artwork",
+    "Substrate",
+    "Technical Drawing",
+    "Technical drawing"
+  ];
+
+  document.querySelectorAll("*").forEach(el=>{
+    if(el.children.length>0)return;
+    const value=(el.textContent||"").trim();
+    if(!terms.includes(value))return;
+
+    el.classList.add("technical-muted-text");
+
+    const parent=el.closest("tr,.sep-item,.sep-row,.separation-item,.chip,.pill,.tag,.risk-item,.card");
+    if(parent)parent.classList.add("technical-secondary");
+  });
 }
 
 function renderRisks(risks){
@@ -719,28 +794,7 @@ function selectRisk(i){
 
     ${evidenceHtml}
 
-    <div class="risk-intel-grid">
-      <div class="risk-intel-card">
-        <strong>Criterio aplicado</strong>
-        <div>${esc(riskCriteria(r))}</div>
-      </div>
-      <div class="risk-intel-card">
-        <strong>Contexto operativo</strong>
-        <div>${esc(riskOperationalContext(r))}</div>
-      </div>
-      <div class="risk-intel-card">
-        <strong>Impacto posible</strong>
-        <div>${esc(riskPossibleImpact(r))}</div>
-      </div>
-      <div class="risk-intel-card">
-        <strong>Limitación actual</strong>
-        <div>${esc(riskCurrentLimitation(r))}</div>
-      </div>
-      <div class="risk-intel-card">
-        <strong>Evolución futura</strong>
-        <div>${esc(riskFutureEvolution(r))}</div>
-      </div>
-    </div>
+    ${renderIntelligenceDetails(r)}
 
     ${renderGuidancePanel(r)}
 
