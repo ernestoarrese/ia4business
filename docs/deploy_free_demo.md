@@ -50,3 +50,7 @@ echo "https://${CODESPACE_NAME}-8000.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}
 ## Siguiente decisión
 
 Si la demo gratuita es lenta o limita ZIPs reales, pasar a VPS / AWS Lightsail / servidor propio.
+
+## Render demo validation
+- Auto Deploy On Commit validado manualmente.
+- Fecha: Fri Jul 10 23:54:04 UTC 2026
