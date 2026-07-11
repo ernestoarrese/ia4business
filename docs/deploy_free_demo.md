@@ -54,3 +54,12 @@ Si la demo gratuita es lenta o limita ZIPs reales, pasar a VPS / AWS Lightsail /
 ## Render demo validation
 - Auto Deploy On Commit validado manualmente.
 - Fecha: Fri Jul 10 23:54:04 UTC 2026
+
+## Demo Security & Runtime Hardening v1
+
+- Se agrega autenticación básica opcional para la demo.
+- `/health` queda público para Render.
+- Si `GATE0_DEMO_PASSWORD` existe, Gate0 pide usuario y contraseña.
+- La contraseña se define solo como variable de entorno en Render, nunca en GitHub.
+- `GATE0_MAX_UPLOAD_MB` controla el límite de archivo dentro de la app.
+- Render puede tener límites propios antes de que el archivo llegue a FastAPI.

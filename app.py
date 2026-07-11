@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from gate0_demo_security import install_demo_security
 from pathlib import Path
 import shutil
 import subprocess
@@ -21,6 +22,7 @@ from gate0_orchestrator import Gate0Orchestrator
 from gate0.agents.inspection_agent import InspectionAgent
 
 app = FastAPI(title="Gate0 Packaging QA")
+install_demo_security(app)
 
 ROOT = Path(__file__).parent
 RUNTIME_DIR = ROOT / "data" / "runtime"
