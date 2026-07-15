@@ -63,3 +63,15 @@ Si la demo gratuita es lenta o limita ZIPs reales, pasar a VPS / AWS Lightsail /
 - La contraseña se define solo como variable de entorno en Render, nunca en GitHub.
 - `GATE0_MAX_UPLOAD_MB` controla el límite de archivo dentro de la app.
 - Render puede tener límites propios antes de que el archivo llegue a FastAPI.
+
+
+## ZIP Upload UX Cleanup v1
+
+- Se mejora la pantalla inicial para explicar PDF vs ZIP.
+- Se aclara que PDF se analiza directo y ZIP abre selector.
+- Se agrega aviso de espera para Render Free y archivos grandes.
+- La opción de ZIP local grande queda como opción avanzada para Codespaces/servidor.
+- ZIP Intake ahora orienta al usuario a elegir el PDF final o AI principal.
+- Se agrega estado visual de “Procesando en Gate0...” al enviar formularios.
+
+---

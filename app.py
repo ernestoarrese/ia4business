@@ -107,13 +107,13 @@ def render_zip_selection(session_id, client, inventory):
               <input type="hidden" name="client" value="{html.escape(client)}"/>
               <input type="hidden" name="ai_file" value="{html.escape(ai_file.get('relative_path', ''))}"/>
               <input type="hidden" name="pdf_file" value="{html.escape(pdf_file.get('relative_path', ''))}"/>
-              <button type="submit" class="secondary-button">Comparar AI vs PDF</button>
+              <button type="submit" class="secondary-button">Comparar AI vs PDF antes de analizar</button>
             </form>
             """
 
         pair_html += f"""
         <div class="pair-box">
-          <b>Artwork Consistency candidate</b>
+          <b>Posible pareja AI/PDF detectada</b>
           <p>{html.escape(pair.get("reason", ""))}</p>
           <ul>{files}</ul>
           {compare_button}
@@ -189,11 +189,11 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
 </head>
 <body>
 <main class="card">
-  <h1>Selecciona archivo para análisis</h1>
-  <p>Gate0 encontró archivos dentro del ZIP. En esta versión se analiza un archivo a la vez.</p>
+  <h1>ZIP Intake — selecciona archivo principal</h1>
+  <p>Gate0 encontró archivos dentro del ZIP. Elige el PDF final o AI principal que quieres analizar. En esta versión se procesa un archivo a la vez.</p>
 
   <div class="summary">
-    <div><b>{len(inventory.get("analyzable", []))}</b><span>PDF / AI analizables</span></div>
+    <div><b>{len(inventory.get("analyzable", []))}</b><span>Archivos principales</span></div>
     <div><b>{len(inventory.get("images", []))}</b><span>Imágenes soporte</span></div>
     <div><b>{len(inventory.get("fonts", []))}</b><span>Fuentes soporte</span></div>
   </div>
@@ -205,11 +205,11 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
     <input type="hidden" name="sid" value="{html.escape(session_id)}"/>
     <input type="hidden" name="client" value="{html.escape(client)}"/>
     {options}
-    <button type="submit" {"disabled" if not analyzable else ""}>Analizar seleccionado</button>
+    <button type="submit" {"disabled" if not analyzable else ""}>Analizar archivo seleccionado</button>
   </form>
 
   <div class="support-box">
-    <h3>Soportes encontrados</h3>
+    <h3>Archivos soporte encontrados</h3>
     <div class="support-grid">
       <div>
         <b>Imágenes ({len(inventory.get("images", []))})</b>
@@ -290,16 +290,23 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
 <body>
 <main class="card">
   <div class="logo">G0</div>
+  <div style="display:inline-flex;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;font-weight:950;padding:7px 11px;margin-bottom:14px">Demo privada · Gate0 staging</div>
   <h1>Gate0 Packaging QA</h1>
-  <p>Sube un PDF/ZIP pequeño o selecciona un ZIP local grande desde runtime.</p>
+  <p>Sube un PDF o ZIP de arte. Si subes un PDF, Gate0 analiza directo; si subes un ZIP, detecta los archivos principales y te deja elegir cuál analizar.</p>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 4px">
+    <div style="background:#f8fafc;border:1px solid #edf2f7;border-radius:16px;padding:13px"><b>PDF</b><span style="display:block;color:#667085;font-size:12px;line-height:1.35;margin-top:5px">Análisis directo del archivo cargado.</span></div>
+    <div style="background:#f8fafc;border:1px solid #edf2f7;border-radius:16px;padding:13px"><b>ZIP</b><span style="display:block;color:#667085;font-size:12px;line-height:1.35;margin-top:5px">Gate0 abre un selector con PDF/AI detectados.</span></div>
+    <div style="background:#f8fafc;border:1px solid #edf2f7;border-radius:16px;padding:13px"><b>Demo web</b><span style="display:block;color:#667085;font-size:12px;line-height:1.35;margin-top:5px">El análisis puede tardar más en Render Free.</span></div>
+  </div>
 
   <form class="drop" action="/analyze" method="post" enctype="multipart/form-data">
     <label>Cliente / Proyecto opcional</label>
     <input type="text" name="client" placeholder="Ejemplo: Control Test"/>
-    <label>Archivo PDF o ZIP pequeño</label>
+    <label>Archivo PDF o ZIP</label>
     <input type="file" name="file" accept="application/pdf,.pdf,.zip,application/zip"/>
-    <button type="submit">Analizar archivo subido</button>
-    <div class="note">Para ZIPs grandes usa la sección inferior.</div>
+    <button type="submit">Analizar PDF o abrir ZIP</button>
+    <div class="note">Para ZIPs grandes, el tiempo de carga/análisis puede ser mayor en Render Free. Después de hacer clic, espera a que Gate0 procese el archivo.</div>
   </form>
 
   <div class="divider"></div>
@@ -307,10 +314,10 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
   <form action="/analyze-local-zip" method="post">
     <label>Cliente / Proyecto opcional</label>
     <input type="text" name="client" placeholder="Ejemplo: Cliente ZIP"/>
-    <h2>ZIPs locales grandes</h2>
-    <p>Coloca tus ZIPs en <b>data/runtime/manual_uploads/</b> y aparecerán aquí.</p>
+    <h2>Opción avanzada: ZIP local grande</h2>
+    <p>Uso técnico para Codespaces o servidor propio: coloca ZIPs grandes en <b>data/runtime/manual_uploads/</b> y aparecerán aquí. En Render Free normalmente usa la carga directa superior.</p>
     {zip_cards}
-    <button type="submit">Abrir ZIP seleccionado</button>
+    <button type="submit">Abrir ZIP local seleccionado</button>
   </form>
 </main>
 </body>
