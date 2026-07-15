@@ -591,3 +591,13 @@ Nunca una sin la otra.
 - Se mantiene la diferenciación visual de Spot / Blanco / Plano / Technical.
 
 ---
+
+
+## Compact Separation Summary v1
+
+- Color Separation Summary se compacta para no desplazar Top Risks.
+- La tabla de separaciones usa scroll interno.
+- Separaciones técnicas/plano como Dimensions, Mechanical Artwork, Technical Drawing y Sustrato deben clasificarse como no productivas.
+- Objetivo UX: mantener Top Risks y Riesgo seleccionado visibles junto al visor PDF.
+
+---

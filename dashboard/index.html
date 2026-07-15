@@ -241,6 +241,17 @@
 .sep-tag.compact{display:inline-flex;align-items:center;justify-content:center;min-width:58px;padding:4px 8px;font-size:10px}
 .sep-warning.compact{font-size:12px;margin-top:8px}
 
+
+.sep-scroll{max-height:220px;overflow:auto;padding-right:2px}
+.sep-summary-note{font-size:11px;color:#667085;margin-top:6px}
+.side .card:first-child{max-height:330px;overflow:hidden}
+.sep-table{width:100%;border-collapse:separate;border-spacing:0 4px;margin-top:8px}
+.sep-table td{background:#fff;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;padding:6px 9px;font-size:12px}
+.sep-table td:first-child{border-left:1px solid #e5e7eb;border-radius:10px 0 0 10px;font-weight:850;color:#475467;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sep-table td:last-child{border-right:1px solid #e5e7eb;border-radius:0 10px 10px 0;text-align:right;width:78px}
+.sep-tag.compact{display:inline-flex;align-items:center;justify-content:center;min-width:52px;padding:3px 7px;font-size:9px}
+.sep-warning.compact{font-size:12px;margin-top:8px}
+
 </style>
 </head>
 <body>
@@ -482,7 +493,7 @@ function renderSeparations(data){
 
   const rows=items.map(i=>`
     <tr>
-      <td>${esc(i.name)}</td>
+      <td title="${esc(i.name)}">${esc(i.name)}</td>
       <td><span class="sep-tag compact ${esc(i.type)}">${esc(i.type)}</span></td>
     </tr>
   `).join("");
@@ -491,9 +502,16 @@ function renderSeparations(data){
     <div class="sep-warning compact">${esc(w.message)}</div>
   `).join("");
 
+  const moreNote = items.length > 7
+    ? `<div class="sep-summary-note">Lista compacta con scroll interno · ${esc(items.length)} separaciones detectadas</div>`
+    : "";
+
   box.innerHTML=`
     ${header}
-    <table class="sep-table"><tbody>${rows}</tbody></table>
+    <div class="sep-scroll">
+      <table class="sep-table"><tbody>${rows}</tbody></table>
+    </div>
+    ${moreNote}
     ${warnHtml}
   `;
 }

@@ -34,7 +34,7 @@ class SeparationIntelligenceService:
 
         if any(x in n for x in [
             "plano", "dieline", "troquel", "cut", "cutter", "knife",
-            "pie", "sustrato", "substrate", "texto", "text"
+            "pie", "sustrato", "substrate", "texto", "text", "dimensions", "dimension", "mechanical", "mechanical artwork", "mechanicalartwork", "technical drawing", "technicaldrawing", "technical information", "technicalinformation", "substrato"
         ]):
             return "Plano"
 
