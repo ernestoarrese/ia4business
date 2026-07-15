@@ -23,8 +23,8 @@
 .headline{color:#344054;font-size:15px;line-height:1.45;margin-top:10px}.score{font-size:42px;font-weight:950;letter-spacing:-.07em}.score small{font-size:18px;color:var(--muted)}
 .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}.meta div{background:#f8fafc;border:1px solid #edf2f7;border-radius:16px;padding:12px}
 .meta b{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.meta span{font-size:14px;font-weight:850}
-.main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(390px,.85fr);gap:16px}
-.viewer{height:720px;padding:0;overflow:hidden}.viewer iframe{width:100%;height:100%;border:0;background:white;border-radius:24px}
+.main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(360px,.65fr);gap:18px}
+.viewer{height:780px;padding:0;overflow:hidden}.viewer iframe{width:100%;height:100%;border:0;background:white;border-radius:24px}
 .side{display:flex;flex-direction:column;gap:16px}.section-title{font-size:13px;color:var(--muted);font-weight:950;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px}
 .risk-list{display:flex;flex-direction:column;gap:10px}.risk-item{border:1px solid var(--line);border-radius:18px;padding:14px;cursor:pointer;background:#fff}
 .risk-item.active{outline:3px solid rgba(37,99,235,.16);border-color:#93c5fd}.risk-top{display:flex;justify-content:space-between;gap:10px;align-items:center}
@@ -34,7 +34,7 @@
 .info-box{background:#f8fafc;border:1px solid #edf2f7;border-radius:16px;padding:14px;margin-top:12px}
 .info-box b{display:block;font-size:12px;color:#667085;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}.info-box div{font-size:14px;line-height:1.4}
 .empty{color:#667085;font-size:14px;line-height:1.5}
-@media(max-width:1000px){.hero,.main{grid-template-columns:1fr}.viewer{height:520px}.meta{grid-template-columns:1fr 1fr}}
+@media(max-width:1000px){.hero,.main{grid-template-columns:1fr}.viewer{height:560px}.meta{grid-template-columns:1fr 1fr}}
 
 .hero-card{padding:18px 20px}
 .hero-top{display:flex;align-items:center;gap:28px}
@@ -231,6 +231,16 @@
 .technical-secondary{opacity:.62}
 .risk-intel-grid.compact{grid-template-columns:1fr}
 
+
+.sep-compact-header{display:flex;flex-wrap:wrap;gap:8px;background:#f8fafc;color:#475467;border:1px solid #e5e7eb;border-radius:14px;padding:10px 12px;font-size:12px;line-height:1.35}
+.sep-compact-header b{color:#0f172a}
+.sep-table{width:100%;border-collapse:separate;border-spacing:0 6px;margin-top:10px}
+.sep-table td{background:#fff;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;padding:8px 10px;font-size:13px}
+.sep-table td:first-child{border-left:1px solid #e5e7eb;border-radius:12px 0 0 12px;font-weight:850;color:#475467}
+.sep-table td:last-child{border-right:1px solid #e5e7eb;border-radius:0 12px 12px 0;text-align:right;width:92px}
+.sep-tag.compact{display:inline-flex;align-items:center;justify-content:center;min-width:58px;padding:4px 8px;font-size:10px}
+.sep-warning.compact{font-size:12px;margin-top:8px}
+
 </style>
 </head>
 <body>
@@ -283,15 +293,14 @@
     <div class="card viewer"><iframe id="pdfFrame" title="PDF analizado"></iframe></div>
 
     <aside class="side">
-<div class="card">
-        <h3 class="section-title">Top Risks</h3>
-        <div id="riskList" class="risk-list"></div>
-      </div>
-
-      
       <div class="card">
         <h3 class="section-title">Color Separation Summary</h3>
         <div id="separationSummary" class="empty">Sin información de separaciones.</div>
+      </div>
+
+      <div class="card">
+        <h3 class="section-title">Top Risks</h3>
+        <div id="riskList" class="risk-list"></div>
       </div>
 
       <div class="card detail">
@@ -455,7 +464,7 @@ function renderSeparations(data){
   const warnings=summary.warnings||[];
 
   if(!items.length){
-    box.innerHTML='<div class="empty">No se detectaron separaciones en el archivo.</div>';
+    box.innerHTML=`<div class="empty">No se detectaron separaciones en el archivo.</div>`;
     return;
   }
 
@@ -464,25 +473,27 @@ function renderSeparations(data){
   const source=processSourceLabel(summary.process_count_source || "No informado");
 
   const header=`
-    <div class="sep-warning" style="background:#f8fafc;color:#475467;border-color:#e5e7eb">
-      Detectadas por parser: <b>${esc(detected)}</b> · Conteo operativo: <b>${esc(operational)}</b> · Base proceso: <b>${esc(source)}</b>
+    <div class="sep-compact-header">
+      <span>Parser: <b>${esc(detected)}</b></span>
+      <span>Operativo: <b>${esc(operational)}</b></span>
+      <span>Proceso: <b>${esc(source)}</b></span>
     </div>
   `;
 
   const rows=items.map(i=>`
-    <div class="sep-item">
-      <div class="sep-name">${esc(i.name)}</div>
-      <span class="sep-tag ${esc(i.type)}">${esc(i.type)}</span>
-    </div>
+    <tr>
+      <td>${esc(i.name)}</td>
+      <td><span class="sep-tag compact ${esc(i.type)}">${esc(i.type)}</span></td>
+    </tr>
   `).join("");
 
   const warnHtml=warnings.map(w=>`
-    <div class="sep-warning">${esc(w.message)}</div>
+    <div class="sep-warning compact">${esc(w.message)}</div>
   `).join("");
 
   box.innerHTML=`
     ${header}
-    <div class="sep-list" style="margin-top:10px">${rows}</div>
+    <table class="sep-table"><tbody>${rows}</tbody></table>
     ${warnHtml}
   `;
 }

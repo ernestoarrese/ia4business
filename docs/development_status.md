@@ -578,3 +578,16 @@ Nunca una sin la otra.
 - Se corrige fallback para que cero sea valor válido y no caiga a total detectado.
 
 ---
+
+
+## Dashboard Layout UX v2
+
+- Se amplía el visor PDF para hacerlo más protagonista.
+- Se reordena el panel derecho:
+    1. Color Separation Summary
+    2. Top Risks
+    3. Riesgo seleccionado
+- Color Separation Summary se compacta en tabla/lista densa.
+- Se mantiene la diferenciación visual de Spot / Blanco / Plano / Technical.
+
+---
