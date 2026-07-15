@@ -244,13 +244,25 @@
 
 .sep-scroll{max-height:220px;overflow:auto;padding-right:2px}
 .sep-summary-note{font-size:11px;color:#667085;margin-top:6px}
-.side .card:first-child{max-height:330px;overflow:hidden}
 .sep-table{width:100%;border-collapse:separate;border-spacing:0 4px;margin-top:8px}
 .sep-table td{background:#fff;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;padding:6px 9px;font-size:12px}
 .sep-table td:first-child{border-left:1px solid #e5e7eb;border-radius:10px 0 0 10px;font-weight:850;color:#475467;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sep-table td:last-child{border-right:1px solid #e5e7eb;border-radius:0 10px 10px 0;text-align:right;width:78px}
 .sep-tag.compact{display:inline-flex;align-items:center;justify-content:center;min-width:52px;padding:3px 7px;font-size:9px}
 .sep-warning.compact{font-size:12px;margin-top:8px}
+
+
+.left-stack{display:flex;flex-direction:column;gap:16px}
+.separation-below{padding:18px 20px}
+.sep-groups{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+.sep-group{border:1px solid #e5e7eb;border-radius:16px;background:#f8fafc;padding:10px}
+.sep-group-title{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:950;color:#667085;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.sep-group-title span{font-size:11px;color:#475467;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:3px 7px}
+.sep-group-scroll{max-height:180px;overflow:auto;padding-right:2px}
+.sep-mini-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:6px 8px;margin-bottom:5px}
+.sep-mini-name{font-size:12px;font-weight:850;color:#475467;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sep-mini-empty{font-size:12px;color:#667085;background:#fff;border:1px dashed #cbd5e1;border-radius:10px;padding:10px}
+@media(max-width:1000px){.sep-groups{grid-template-columns:1fr}}
 
 </style>
 </head>
@@ -301,14 +313,16 @@
 
 
   <section class="main">
-    <div class="card viewer"><iframe id="pdfFrame" title="PDF analizado"></iframe></div>
+    <div class="left-stack">
+      <div class="card viewer"><iframe id="pdfFrame" title="PDF analizado"></iframe></div>
 
-    <aside class="side">
-      <div class="card">
+      <div class="card separation-below">
         <h3 class="section-title">Color Separation Summary</h3>
         <div id="separationSummary" class="empty">Sin información de separaciones.</div>
       </div>
+    </div>
 
+    <aside class="side">
       <div class="card">
         <h3 class="section-title">Top Risks</h3>
         <div id="riskList" class="risk-list"></div>
@@ -483,6 +497,25 @@ function renderSeparations(data){
   const operational=summary.operational_total ?? detected;
   const source=processSourceLabel(summary.process_count_source || "No informado");
 
+  const isNonPrintable=(item)=>{
+    const type=String(item.type||"").toLowerCase();
+    const name=String(item.name||"").toLowerCase();
+    return (
+      type.includes("plano") ||
+      type.includes("technical") ||
+      type.includes("técnico") ||
+      type.includes("tecnico") ||
+      name.includes("dimension") ||
+      name.includes("mechanical") ||
+      name.includes("technical drawing") ||
+      name.includes("sustrato") ||
+      name.includes("substrate")
+    );
+  };
+
+  const printable=items.filter(i=>!isNonPrintable(i));
+  const nonPrintable=items.filter(i=>isNonPrintable(i));
+
   const header=`
     <div class="sep-compact-header">
       <span>Parser: <b>${esc(detected)}</b></span>
@@ -491,27 +524,30 @@ function renderSeparations(data){
     </div>
   `;
 
-  const rows=items.map(i=>`
-    <tr>
-      <td title="${esc(i.name)}">${esc(i.name)}</td>
-      <td><span class="sep-tag compact ${esc(i.type)}">${esc(i.type)}</span></td>
-    </tr>
-  `).join("");
+  const renderGroup=(title, group, emptyText)=>`
+    <div class="sep-group">
+      <div class="sep-group-title">${esc(title)} <span>${esc(group.length)}</span></div>
+      <div class="sep-group-scroll">
+        ${group.length ? group.map(i=>`
+          <div class="sep-mini-row">
+            <div class="sep-mini-name" title="${esc(i.name)}">${esc(i.name)}</div>
+            <span class="sep-tag compact ${esc(i.type)}">${esc(i.type)}</span>
+          </div>
+        `).join("") : `<div class="sep-mini-empty">${esc(emptyText)}</div>`}
+      </div>
+    </div>
+  `;
 
   const warnHtml=warnings.map(w=>`
     <div class="sep-warning compact">${esc(w.message)}</div>
   `).join("");
 
-  const moreNote = items.length > 7
-    ? `<div class="sep-summary-note">Lista compacta con scroll interno · ${esc(items.length)} separaciones detectadas</div>`
-    : "";
-
   box.innerHTML=`
     ${header}
-    <div class="sep-scroll">
-      <table class="sep-table"><tbody>${rows}</tbody></table>
+    <div class="sep-groups">
+      ${renderGroup("Imprimibles", printable, "Sin separaciones imprimibles detectadas.")}
+      ${renderGroup("No imprimibles / técnicas", nonPrintable, "Sin separaciones técnicas detectadas.")}
     </div>
-    ${moreNote}
     ${warnHtml}
   `;
 }

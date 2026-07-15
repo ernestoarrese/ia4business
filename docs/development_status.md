@@ -601,3 +601,15 @@ Nunca una sin la otra.
 - Objetivo UX: mantener Top Risks y Riesgo seleccionado visibles junto al visor PDF.
 
 ---
+
+
+## Separation Summary Below Viewer v1
+
+- Color Separation Summary se mueve debajo del visor PDF.
+- El panel derecho queda enfocado en Top Risks y Riesgo seleccionado.
+- Las separaciones se dividen en dos grupos:
+    - Imprimibles
+    - No imprimibles / técnicas
+- Objetivo UX: permitir seleccionar riesgos y leer el detalle mientras el visor PDF sigue visible.
+
+---
