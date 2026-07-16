@@ -622,6 +622,17 @@ function buildEvidenceItems(r,insight){
   pushEvidence(items,"Spot",firstValue(r.spot_name,r.separation_name,r.ink_name,ev.spot_name,ev.separation_name));
   pushEvidence(items,"Separaciones",firstValue(r.printable_separation_count,r.separation_count,ev.printable_separation_count,ev.separation_count));
   pushEvidence(items,"bbox",firstValue(r.bbox,ev.bbox));
+
+  if(r.is_inside_printable_area===false){
+    pushEvidence(items,"Área imprimible","Fuera del área útil confirmada");
+  }else if(r.is_inside_printable_area===true){
+    pushEvidence(items,"Área imprimible","Dentro del área útil confirmada");
+  }else if(r.printable_area_source){
+    pushEvidence(items,"Área imprimible","No confirmada");
+  }
+
+  pushEvidence(items,"Fuente área",r.printable_area_source);
+  pushEvidence(items,"Solape área útil",r.printable_area_overlap_percent!=null?`${r.printable_area_overlap_percent}%`:null);
   pushEvidence(items,"Regla",firstValue(ev.rule_applied,r.check));
 
   return items.slice(0,10);

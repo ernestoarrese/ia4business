@@ -671,3 +671,23 @@ Nunca una sin la otra.
     - exclusión de logos/claims/etiquetas no funcionales.
 
 ---
+
+
+## Printable Area Guard v1
+
+- Se agrega enriquecimiento de findings con `bbox` contra cajas PDF de página.
+- Prioridad de área útil:
+    1. TrimBox confirmado
+    2. ArtBox fallback
+    3. CropBox fallback
+    4. Página completa no confirmada
+- Se agregan campos:
+    - `printable_area_source`
+    - `printable_area_confidence`
+    - `is_inside_printable_area`
+    - `printable_area_overlap_percent`
+- `SMALL_TEXT_RISK` y `LOW_IMAGE_RESOLUTION` fuera del área útil confirmada se degradan a INFO.
+- El dashboard muestra si el hallazgo está dentro/fuera del área imprimible confirmada.
+- Si no hay caja confiable, Gate0 mantiene comportamiento actual.
+
+---

@@ -184,6 +184,31 @@ def extract_dpi_value(value):
 
     return None
 
+
+
+def is_outside_confirmed_printable_area(finding):
+    return (
+        finding.get("is_inside_printable_area") is False
+        and finding.get("printable_area_source") in {
+            "TRIMBOX_CONFIRMED",
+            "ARTBOX_FALLBACK",
+            "CROPBOX_FALLBACK",
+        }
+    )
+
+
+def outside_printable_area_business_result(finding, risk_area):
+    source = finding.get("printable_area_source", "UNKNOWN")
+    overlap = finding.get("printable_area_overlap_percent")
+    reason = (
+        f"El hallazgo está fuera del área imprimible/relevante confirmada ({source}). "
+        f"Solape con área útil: {overlap}%."
+    )
+    action = "No bloquear por este hallazgo; validar si corresponde a plano, referencia o información técnica fuera del arte."
+    p, w = severity_meta("INFO", {"INFO": 1})
+    return apply_business_fields(finding, "INFO", risk_area, reason, p, action, w)
+
+
 def evaluate_rgb_object(finding, profile):
     area = float(finding.get("object_area_percent") or 0)
     is_printable = finding.get("is_printable", True)
@@ -262,6 +287,9 @@ def evaluate_barcode_risk(finding, profile):
     return apply_business_fields(finding, sev, "Código de barras / QR", reason, p, action, w)
 
 def evaluate_low_image_resolution(finding, profile):
+    if is_outside_confirmed_printable_area(finding):
+        return outside_printable_area_business_result(finding, "Resolución de imagen")
+
     dpi = extract_dpi_value(finding)
     area = float(finding.get("object_area_percent") or 0)
     image_role = finding.get("image_role", "unknown")
@@ -295,6 +323,9 @@ def evaluate_low_image_resolution(finding, profile):
 
 
 def evaluate_small_text_risk(finding, profile):
+    if is_outside_confirmed_printable_area(finding):
+        return outside_printable_area_business_result(finding, "Texto pequeño / legibilidad")
+
     small_text_profile = profile.get("small_text", {}) if isinstance(profile, dict) else {}
 
     enabled = small_text_profile.get("enabled", True)

@@ -129,6 +129,169 @@ def detect_page_boxes(pdf_path):
     return boxes
 
 
+
+
+def _box_tuple(box):
+    if not isinstance(box, dict):
+        return None
+    try:
+        return (
+            float(box.get("x0_pt")),
+            float(box.get("y0_pt")),
+            float(box.get("x1_pt")),
+            float(box.get("y1_pt")),
+        )
+    except Exception:
+        return None
+
+
+def _box_area(box):
+    if not box:
+        return 0.0
+    x0, y0, x1, y1 = box
+    return max(0.0, x1 - x0) * max(0.0, y1 - y0)
+
+
+def _boxes_equal(a, b, tolerance_pt=1.0):
+    if not a or not b:
+        return False
+    return all(abs(float(x) - float(y)) <= tolerance_pt for x, y in zip(a, b))
+
+
+def _intersection_area(a, b):
+    if not a or not b:
+        return 0.0
+    ax0, ay0, ax1, ay1 = a
+    bx0, by0, bx1, by1 = b
+
+    x0 = max(ax0, bx0)
+    y0 = max(ay0, by0)
+    x1 = min(ax1, bx1)
+    y1 = min(ay1, by1)
+
+    return max(0.0, x1 - x0) * max(0.0, y1 - y0)
+
+
+def resolve_printable_area(page_box):
+    """
+    Resolve printable/relevant area from PDF page boxes.
+
+    Priority:
+    1. TrimBox when it is different from MediaBox.
+    2. ArtBox fallback.
+    3. CropBox fallback.
+    4. Full page unconfirmed.
+    """
+    media = _box_tuple(page_box.get("mediabox"))
+    trim = _box_tuple(page_box.get("trimbox"))
+    art = _box_tuple(page_box.get("artbox"))
+    crop = _box_tuple(page_box.get("cropbox"))
+
+    if trim and media and not _boxes_equal(trim, media) and _box_area(trim) > 0:
+        return {
+            "source": "TRIMBOX_CONFIRMED",
+            "confidence": "HIGH",
+            "box": trim,
+        }
+
+    if art and media and not _boxes_equal(art, media) and _box_area(art) > 0:
+        return {
+            "source": "ARTBOX_FALLBACK",
+            "confidence": "MEDIUM",
+            "box": art,
+        }
+
+    if crop and media and not _boxes_equal(crop, media) and _box_area(crop) > 0:
+        return {
+            "source": "CROPBOX_FALLBACK",
+            "confidence": "LOW",
+            "box": crop,
+        }
+
+    return {
+        "source": "UNCONFIRMED_FULL_PAGE",
+        "confidence": "LOW",
+        "box": media,
+    }
+
+
+def enrich_findings_with_printable_area(findings, page_boxes):
+    """
+    Adds printable area metadata to findings with bbox.
+
+    If printable area is confirmed and the finding is clearly outside it,
+    business rules may downgrade/exclude it from critical Top Risks.
+    """
+    page_box_map = {
+        int(p.get("page")): p
+        for p in page_boxes
+        if isinstance(p, dict) and p.get("page") is not None
+    }
+
+    enriched = []
+
+    for finding in findings:
+        item = finding.copy()
+
+        bbox = item.get("bbox") or []
+        if not isinstance(bbox, list) or len(bbox) != 4:
+            enriched.append(item)
+            continue
+
+        page_number = int(item.get("page") or 1)
+        page_box = page_box_map.get(page_number)
+
+        if not page_box:
+            item["printable_area_source"] = "NO_PAGE_BOX"
+            item["printable_area_confidence"] = "LOW"
+            item["is_inside_printable_area"] = None
+            enriched.append(item)
+            continue
+
+        area = resolve_printable_area(page_box)
+        source = area.get("source")
+        printable_box = area.get("box")
+
+        try:
+            finding_box = tuple(float(x) for x in bbox)
+        except Exception:
+            item["printable_area_source"] = source
+            item["printable_area_confidence"] = area.get("confidence")
+            item["is_inside_printable_area"] = None
+            enriched.append(item)
+            continue
+
+        if source == "UNCONFIRMED_FULL_PAGE" or not printable_box:
+            item["printable_area_source"] = source
+            item["printable_area_confidence"] = area.get("confidence")
+            item["is_inside_printable_area"] = None
+            item["printable_area_overlap_percent"] = None
+            enriched.append(item)
+            continue
+
+        finding_area = _box_area(finding_box)
+        overlap = _intersection_area(finding_box, printable_box)
+        overlap_percent = round((overlap / finding_area) * 100, 2) if finding_area else 0.0
+
+        # Consider inside if most of the element is inside the printable area.
+        inside = overlap_percent >= 80.0
+
+        item["printable_area_source"] = source
+        item["printable_area_confidence"] = area.get("confidence")
+        item["is_inside_printable_area"] = inside
+        item["printable_area_overlap_percent"] = overlap_percent
+        item["printable_area_box"] = {
+            "x0_pt": printable_box[0],
+            "y0_pt": printable_box[1],
+            "x1_pt": printable_box[2],
+            "y1_pt": printable_box[3],
+        }
+
+        enriched.append(item)
+
+    return enriched
+
+
 def detect_live_fonts(pdf_path):
     """
     Detecta fuentes no embebidas.
@@ -799,7 +962,7 @@ def check_spot_color_risk(separations):
 def check_separation_count_risk(separations, process_colors=None):
     findings = []
 
-    # Source of truth for operational count:
+    # Source of truth for spot/technical classification:
     # use the same classifier used by Color Separation Summary.
     try:
         from gate0.services.separation_intelligence_service import SeparationIntelligenceService
@@ -808,24 +971,64 @@ def check_separation_count_risk(separations, process_colors=None):
     except Exception:
         items = []
 
+    inventory = build_spot_inventory(separations)
+
     process_colors = process_colors or []
     process_colors = [c for c in ["C", "M", "Y", "K"] if c in set(process_colors)]
 
+    printable_spot_count = inventory["printable_spot_count"]
+    process_count_source = "NO_PROCESS_COLORS_DETECTED"
+    process_detection_confidence = "LOW"
+    process_colors_detected = []
+
     if items:
-        printable_items = [
+        printable_spot_count = sum(
+            1 for i in items
+            if i.get("type") in {"Spot", "Blanco"}
+        )
+
+        explicit_process_items = [
             i for i in items
-            if i.get("type") in {"Process", "Spot", "Blanco"}
+            if i.get("type") == "Process"
         ]
 
-        process_items = [i for i in printable_items if i.get("type") == "Process"]
-        spot_items = [i for i in printable_items if i.get("type") in {"Spot", "Blanco"}]
+        # Some technical artwork templates include separations named C PERU / M PERU / Y PERU / K PERU.
+        # Those must not inflate operative process color count.
+        plan_process_letters = set()
+        for i in items:
+            name = str(i.get("name", "")).strip().lower().replace(" ", "")
+            if i.get("type") in {"Plano", "Technical"}:
+                if name == "cperu":
+                    plan_process_letters.add("C")
+                elif name == "mperu":
+                    plan_process_letters.add("M")
+                elif name == "yperu":
+                    plan_process_letters.add("Y")
+                elif name == "kperu":
+                    plan_process_letters.add("K")
 
-        printable_count = len(printable_items)
-        process_count = len(process_items)
-        printable_spot_count = len(spot_items)
-        process_count_source = "SEPARATION_SUMMARY_CLASSIFICATION"
-        process_detection_confidence = "MEDIUM"
-        process_colors_detected = [i.get("name") for i in process_items]
+        if explicit_process_items:
+            process_colors_detected = [
+                str(i.get("name", "")).upper()
+                for i in explicit_process_items
+            ]
+            process_count = len(explicit_process_items)
+            process_count_source = "SEPARATION_SUMMARY_CLASSIFICATION"
+            process_detection_confidence = "MEDIUM"
+        else:
+            process_colors_detected = [
+                c for c in process_colors
+                if c not in plan_process_letters
+            ]
+            process_count = len(process_colors_detected)
+
+            if process_count > 0:
+                process_count_source = "DETECTED_PROCESS_COLORS"
+                process_detection_confidence = "MEDIUM"
+            else:
+                process_count_source = "NO_PROCESS_COLORS_DETECTED"
+                process_detection_confidence = "LOW"
+
         technical_detected = any(i.get("type") in {"Plano", "Technical"} for i in items)
         white_detected = any(i.get("type") == "Blanco" for i in items)
         varnish_detected = any(
@@ -834,22 +1037,18 @@ def check_separation_count_risk(separations, process_colors=None):
             for i in items
         )
     else:
-        inventory = build_spot_inventory(separations)
-        process_count = len(process_colors)
-        printable_spot_count = inventory["printable_spot_count"]
-        printable_count = process_count + printable_spot_count
         process_colors_detected = process_colors
+        process_count = len(process_colors_detected)
 
         if process_count > 0:
             process_count_source = "DETECTED_PROCESS_COLORS"
             process_detection_confidence = "MEDIUM"
-        else:
-            process_count_source = "NO_PROCESS_COLORS_DETECTED"
-            process_detection_confidence = "LOW"
 
         white_detected = inventory["white_spot_count"] > 0
         varnish_detected = inventory["varnish_spot_count"] > 0
         technical_detected = inventory["technical_spot_count"] > 0
+
+    printable_count = process_count + printable_spot_count
 
     context_data = {
         "printable_separation_count": printable_count,
@@ -1121,6 +1320,8 @@ def build_report(pdf_path):
     findings.extend(check_spot_color_risk(separations))
     findings.extend(check_separation_count_risk(separations, process_colors=process_colors))
     findings.extend(check_pdf_structure_risk(pdf_structure))
+
+    findings = enrich_findings_with_printable_area(findings, page_boxes)
 
     context_findings = enrich_context(findings, str(input_path))
 

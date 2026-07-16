@@ -327,6 +327,10 @@ def build_fix_plan(findings, limit=6):
             "severity": severity,
             "page": finding.get("page"),
             "bbox": finding.get("bbox"),
+            "printable_area_source": finding.get("printable_area_source"),
+            "printable_area_confidence": finding.get("printable_area_confidence"),
+            "is_inside_printable_area": finding.get("is_inside_printable_area"),
+            "printable_area_overlap_percent": finding.get("printable_area_overlap_percent"),
             "problem": (
                 finding.get("risk_reason")
                 or finding.get("detail")
