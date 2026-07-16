@@ -326,6 +326,7 @@ def build_fix_plan(findings, limit=6):
             "check": check,
             "severity": severity,
             "page": finding.get("page"),
+            "bbox": finding.get("bbox"),
             "problem": (
                 finding.get("risk_reason")
                 or finding.get("detail")

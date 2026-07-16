@@ -17,32 +17,32 @@ class SeparationIntelligenceService:
         return re.sub(r"[^a-z0-9]", "", str(name).lower())
 
     def classify(self, name):
-        raw = str(name).strip()
-        n = self.normalize(raw)
+        raw = str(name or "").strip()
+        n = raw.lower()
+        compact = n.replace(" ", "")
 
-        if n in self.PROCESS:
-            return "Process"
+        if compact in {"cperu", "mperu", "yperu", "kperu"}:
+            return "Plano"
 
-        if n == "all":
+        if compact in {"all"}:
             return "Technical"
-
-        if any(x in n for x in ["white", "blanco", "opaque"]):
-            return "Blanco"
-
-        if any(x in n for x in ["varnish", "barniz", "laca", "coating"]):
-            return "Barniz"
 
         if any(x in n for x in [
             "plano", "dieline", "troquel", "cut", "cutter", "knife",
-            "pie", "sustrato", "substrate", "texto", "text", "dimensions", "dimension", "mechanical", "mechanical artwork", "mechanicalartwork", "technical drawing", "technicaldrawing", "technical information", "technicalinformation", "substrato"
+            "pie", "sustrato", "substrato", "substrate", "texto", "text",
+            "dimensions", "dimension", "mechanical", "mechanical artwork",
+            "technical drawing", "technical information"
         ]):
             return "Plano"
 
-        if any(x in n for x in [
-            "register", "registration", "fotocell", "fotocelula",
-            "mark", "registro"
-        ]):
+        if any(x in n for x in ["technical", "drawing"]):
             return "Technical"
+
+        if any(x in n for x in ["white", "blanco"]):
+            return "Blanco"
+
+        if compact in {"cyan", "magenta", "yellow", "black", "c", "m", "y", "k"}:
+            return "Process"
 
         return "Spot"
 

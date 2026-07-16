@@ -213,44 +213,53 @@ def evaluate_rgb_object(finding, profile):
 
 
 def evaluate_barcode_risk(finding, profile):
-    barcode_profile = profile.get("barcode", {}) if isinstance(profile, dict) else {}
+    effective_dpi = float(finding.get("effective_dpi") or 0)
+    minimum_dpi = float(finding.get("minimum_image_dpi") or 300)
+    critical_dpi = float(finding.get("critical_image_dpi") or 200)
+    candidate_type = finding.get("barcode_candidate_type", "barcode")
+    confidence = str(finding.get("barcode_confidence", "Baja")).lower()
+    method = str(finding.get("detection_method", "")).lower()
 
-    enabled = barcode_profile.get("enabled", True)
-    minimum_dpi = float(barcode_profile.get("minimum_image_dpi", 300))
-    critical_dpi = float(barcode_profile.get("critical_image_dpi", 200))
+    # MVP safety:
+    # If Barcode Intelligence cannot strongly confirm the candidate,
+    # do not allow it to become a CRITICAL Top Risk.
+    strong_method = (
+        "barcode_pattern" in method
+        or "wide_image_geometry_barcode_pattern" in method
+    )
+    strong_confidence = confidence in {"media", "alta", "high"}
 
-    dpi = extract_dpi_value(finding) or 0
-    candidate_type = finding.get("barcode_candidate_type", "unknown")
-    confidence = finding.get("barcode_confidence", "Baja")
-
-    if not enabled:
-        sev = "PASS"
-    elif dpi and dpi < critical_dpi:
-        sev = "CRITICAL"
-    elif dpi and dpi < minimum_dpi:
-        sev = "WARNING"
-    else:
+    if not strong_method and not strong_confidence:
         sev = "INFO"
+        reason = (
+            f"Posible {candidate_type} con {effective_dpi:.0f} dpi, pero la confianza de detección es baja. "
+            "Validar visualmente; no se confirma como código funcional."
+        )
+        action = "Revisar manualmente si el elemento realmente es un código de barras o QR."
+        p, w = severity_meta(sev, {"INFO": 1})
+        return apply_business_fields(finding, sev, "Código de barras / QR", reason, p, action, w)
 
-    reason = (
-        f"Posible {candidate_type.upper()} detectado como imagen con {dpi:.0f} dpi efectivos. "
-        f"Límites del perfil: WARNING < {minimum_dpi:.0f} dpi, CRITICAL < {critical_dpi:.0f} dpi. "
-        f"Confianza de detección: {confidence}."
-    )
+    if effective_dpi < critical_dpi:
+        sev = "CRITICAL"
+        reason = (
+            f"Se detectó un posible {candidate_type} como imagen de {effective_dpi:.0f} dpi efectivos. "
+            "Puede haber riesgo de lectura si el código está rasterizado, escalado o con baja resolución."
+        )
+        action = "Validar escaneo antes de liberar."
+    elif effective_dpi < minimum_dpi:
+        sev = "WARNING"
+        reason = (
+            f"Se detectó un posible {candidate_type} por debajo del mínimo recomendado "
+            f"({effective_dpi:.0f} dpi < {minimum_dpi:.0f} dpi)."
+        )
+        action = "Validar legibilidad y escaneo."
+    else:
+        sev = "PASS"
+        reason = "Candidato barcode/QR dentro de resolución mínima."
+        action = "Sin acción requerida."
 
-    action = (
-        "Validar lectura del código en el arte final. Si el código está rasterizado o pixelado, "
-        "reemplazar por vector o imagen de mayor resolución. Validar además que el código esté construido "
-        "a una sola tinta cuando aplique; los códigos multitinta pueden generar problemas de registro y lectura."
-    )
-
-    p, w = severity_meta(sev, {"CRITICAL": 35, "WARNING": 20, "INFO": 1})
-    result = apply_business_fields(finding, sev, "Código de barras / QR", reason, p, action, w)
-
-    result["profile_barcode_minimum_image_dpi"] = minimum_dpi
-    result["profile_barcode_critical_image_dpi"] = critical_dpi
-
-    return result
+    p, w = severity_meta(sev, {"CRITICAL": 30, "WARNING": 18, "INFO": 1})
+    return apply_business_fields(finding, sev, "Código de barras / QR", reason, p, action, w)
 
 def evaluate_low_image_resolution(finding, profile):
     dpi = extract_dpi_value(finding)
@@ -429,22 +438,26 @@ def evaluate_spot_color_risk(finding, profile):
 def evaluate_separation_count_risk(finding, profile):
     count = int(finding.get("printable_separation_count") or 0)
     source = finding.get("process_count_source", "NO_PROCESS_COLORS_DETECTED")
+    process_count = int(finding.get("process_count") or finding.get("process_color_count") or 0)
+    spot_count = int(finding.get("printable_spot_count") or 0)
+
+    detail_suffix = f" Conteo operativo: {count} imprimibles (proceso={process_count}, spots={spot_count}). Base proceso: {source}."
 
     if count <= 8:
         sev = "PASS"
-        reason = f"Cantidad de separaciones dentro de rango normal ({count}). Base proceso: {source}."
+        reason = f"Cantidad de separaciones dentro de rango normal ({count}).{detail_suffix}"
         action = "Sin acción requerida."
     elif count in [9, 10]:
         sev = "INFO"
-        reason = f"Cantidad elevada de separaciones imprimibles ({count})."
+        reason = f"Cantidad elevada de separaciones imprimibles ({count}).{detail_suffix}"
         action = "Verificar complejidad operativa y disponibilidad de estaciones."
     elif count in [11, 12]:
         sev = "WARNING"
-        reason = f"Cantidad alta de separaciones imprimibles ({count})."
+        reason = f"Cantidad alta de separaciones imprimibles ({count}).{detail_suffix}"
         action = "Revisar racionalización de spots."
     else:
         sev = "CRITICAL"
-        reason = f"Exceso crítico de separaciones imprimibles ({count})."
+        reason = f"Exceso crítico de separaciones imprimibles ({count}).{detail_suffix}"
         action = "Validar capacidad de prensa y racionalización de separaciones."
 
     p, w = severity_meta(sev, {"CRITICAL": 35, "WARNING": 20, "INFO": 1})

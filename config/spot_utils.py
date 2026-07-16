@@ -77,6 +77,58 @@ def group_equivalent_spots(spot_names):
     }
 
 
+def _gate0_is_non_printable_spot(name):
+    normalized = _gate0_normalize_spot_name(name)
+    compact = normalized.replace(" ", "")
+
+    # Plan/process-control separations used by some artwork templates.
+    if compact in {"cperu", "mperu", "yperu", "kperu"}:
+        return True
+
+    non_printable_compact = {
+        "all",
+        "pie",
+        "sustrato",
+        "substrato",
+        "substrate",
+        "texto",
+        "text",
+        "plano",
+        "plano1",
+        "plano2",
+        "technical",
+        "technicaldrawing",
+        "technicalinformation",
+        "dimensions",
+        "dimension",
+        "mechanical",
+        "mechanicalartwork",
+        "dieline",
+        "troquel",
+        "cut",
+        "cutter",
+        "knife",
+    }
+
+    if compact in non_printable_compact:
+        return True
+
+    non_printable_contains = [
+        "technical",
+        "drawing",
+        "dimension",
+        "mechanical",
+        "plano",
+        "troquel",
+        "dieline",
+        "sustrato",
+        "substrato",
+        "substrate",
+    ]
+
+    return any(token in normalized for token in non_printable_contains)
+
+
 def build_spot_inventory(separations, config_path=DEFAULT_CONFIG_PATH):
     keywords = load_spot_keywords(config_path)
 

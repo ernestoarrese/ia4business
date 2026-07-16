@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from gate0_demo_security import install_demo_security
 from pathlib import Path
@@ -10,6 +10,7 @@ import json
 import time
 import uuid
 import zipfile
+import fitz
 import html
 import csv
 from datetime import datetime
@@ -658,6 +659,116 @@ async def analyze_selected(
     )
 
 
+
+
+
+@app.get("/api/risk-preview")
+def get_risk_preview(sid: str, page: int = 1, bbox: str = ""):
+    """
+    Genera una vista previa PNG recortada alrededor del bbox.
+    v1.1: no muestra toda la página; hace zoom contextual sobre la zona del riesgo.
+    """
+    cleanup_old_runtime_files()
+
+    if not bbox:
+        raise HTTPException(status_code=400, detail="Falta bbox")
+
+    try:
+        coords = [float(x.strip()) for x in bbox.split(",")]
+    except Exception:
+        raise HTTPException(status_code=400, detail="bbox inválido")
+
+    if len(coords) != 4:
+        raise HTTPException(status_code=400, detail="bbox debe tener 4 valores")
+
+    paths = session_paths(sid)
+    pdf_path = paths["pdf"]
+
+    if not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="PDF expirado o inexistente")
+
+    try:
+        doc = fitz.open(str(pdf_path))
+    except Exception:
+        raise HTTPException(status_code=500, detail="No se pudo abrir PDF")
+
+    try:
+        if len(doc) == 0:
+            raise HTTPException(status_code=404, detail="PDF sin páginas")
+
+        page_index = max(0, min(int(page or 1) - 1, len(doc) - 1))
+        pdf_page = doc[page_index]
+
+        x0, y0, x1, y1 = coords
+        risk_rect = fitz.Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+        page_rect = pdf_page.rect
+
+        # Asegurar que el bbox sea válido y esté dentro de página.
+        risk_rect = risk_rect & page_rect
+        if risk_rect.is_empty or risk_rect.width <= 0 or risk_rect.height <= 0:
+            raise HTTPException(status_code=400, detail="bbox fuera de página")
+
+        # Crop contextual: si el bbox es pequeño, expandir bastante alrededor.
+        min_w = max(90, page_rect.width * 0.16)
+        min_h = max(70, page_rect.height * 0.12)
+
+        crop_w = max(risk_rect.width * 7, min_w)
+        crop_h = max(risk_rect.height * 10, min_h)
+
+        cx = (risk_rect.x0 + risk_rect.x1) / 2
+        cy = (risk_rect.y0 + risk_rect.y1) / 2
+
+        crop = fitz.Rect(
+            cx - crop_w / 2,
+            cy - crop_h / 2,
+            cx + crop_w / 2,
+            cy + crop_h / 2,
+        )
+
+        # Ajustar crop a límites de página.
+        if crop.x0 < page_rect.x0:
+            crop.x1 += page_rect.x0 - crop.x0
+            crop.x0 = page_rect.x0
+        if crop.y0 < page_rect.y0:
+            crop.y1 += page_rect.y0 - crop.y0
+            crop.y0 = page_rect.y0
+        if crop.x1 > page_rect.x1:
+            crop.x0 -= crop.x1 - page_rect.x1
+            crop.x1 = page_rect.x1
+        if crop.y1 > page_rect.y1:
+            crop.y0 -= crop.y1 - page_rect.y1
+            crop.y1 = page_rect.y1
+
+        crop = crop & page_rect
+
+        # Dibujar recuadro sobre el PDF antes de renderizar el crop.
+        pad = 2
+        draw_rect = fitz.Rect(
+            max(page_rect.x0, risk_rect.x0 - pad),
+            max(page_rect.y0, risk_rect.y0 - pad),
+            min(page_rect.x1, risk_rect.x1 + pad),
+            min(page_rect.y1, risk_rect.y1 + pad),
+        )
+
+        pdf_page.draw_rect(draw_rect, color=(1, 0, 0), width=2.5, overlay=True)
+
+        pix = pdf_page.get_pixmap(
+            matrix=fitz.Matrix(3.0, 3.0),
+            clip=crop,
+            alpha=False
+        )
+        content = pix.tobytes("png")
+
+        return Response(
+            content=content,
+            media_type="image/png",
+            headers={"Cache-Control": "no-store"},
+        )
+    finally:
+        try:
+            doc.close()
+        except Exception:
+            pass
 
 @app.get("/api/report")
 def get_report(sid: str):

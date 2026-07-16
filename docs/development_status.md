@@ -613,3 +613,61 @@ Nunca una sin la otra.
 - Objetivo UX: permitir seleccionar riesgos y leer el detalle mientras el visor PDF sigue visible.
 
 ---
+
+
+## Risk Preview Crop + Separation Count Correction v1
+
+- `/api/risk-preview` ahora devuelve un recorte ampliado alrededor del `bbox`, no la página completa.
+- El objetivo es que el usuario vea la zona específica del riesgo.
+- El dashboard debe mostrar umbrales reales por check en vez de “Regla definida por Gate0”.
+- `C PERU`, `M PERU`, `Y PERU`, `K PERU` se clasifican como separaciones de plano/no imprimibles.
+- El conteo de `SEPARATION_COUNT_RISK` debe alinearse con Color Separation Summary.
+
+---
+
+
+## Risk Visual Evidence Stabilization v1
+
+- Se endurece `BARCODE_RISK` para evitar falsos positivos por logos o íconos cuadrados de baja resolución.
+- QR ya no se detecta solo por geometría cuadrada; requiere evidencia adicional.
+- Se limita ruido de candidatos barcode/QR.
+- El detalle de riesgo debe mostrar umbral operativo real, no “Regla definida por Gate0”.
+- `SEPARATION_COUNT_RISK` ahora explicita conteo operativo, proceso y spots para facilitar cruce con Color Separation Summary.
+
+---
+
+
+## Risk Preview Final Stabilization v1
+
+- `BARCODE_RISK` ahora valida patrón visual de barras 1D para reducir falsos positivos con logos o etiquetas rectangulares.
+- QR queda conservador en v1: no se marca solo por geometría cuadrada.
+- `SEPARATION_COUNT_RISK` usa la misma clasificación base que `Color Separation Summary` cuando existen separaciones explícitas.
+- El dashboard fuerza el reemplazo visual de “Regla definida por Gate0” por umbrales operativos reales.
+- Objetivo: estabilizar Risk Visual Evidence antes de commitear.
+
+---
+
+
+## Safe Sep Count + Barcode Stabilization v1
+
+- `SEPARATION_COUNT_RISK` usa como fuente principal la misma clasificación de `Color Separation Summary`.
+- Esto evita diferencias entre el conteo visual operativo y el Top Risk de separaciones.
+- `BARCODE_RISK` de baja confianza se degrada a INFO para evitar falsos positivos críticos.
+- Objetivo: estabilizar MVP antes de avanzar a validaciones más sofisticadas de barcode/QR.
+
+---
+
+
+## Barcode Risk Disabled by Default v1
+
+- `BARCODE_RISK` queda desactivado por defecto en el MVP.
+- Motivo: la detección por geometría/DPI puede generar falsos positivos en logos, íconos o etiquetas técnicas.
+- Puede activarse para pruebas controladas con `GATE0_ENABLE_BARCODE_RISK=true`.
+- El check debe evolucionar a una versión más confiable antes de volver a Top Risks:
+    - decodificación real cuando sea posible,
+    - validación de patrón visual,
+    - quiet zone,
+    - ubicación probable,
+    - exclusión de logos/claims/etiquetas no funcionales.
+
+---

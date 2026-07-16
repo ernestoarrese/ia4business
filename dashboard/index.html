@@ -264,6 +264,13 @@
 .sep-mini-empty{font-size:12px;color:#667085;background:#fff;border:1px dashed #cbd5e1;border-radius:10px;padding:10px}
 @media(max-width:1000px){.sep-groups{grid-template-columns:1fr}}
 
+
+.risk-preview-box{margin:12px 0 14px;border:1px solid #e5e7eb;border-radius:18px;background:#fff;overflow:hidden}
+.risk-preview-head{display:flex;justify-content:space-between;gap:8px;align-items:center;background:#f8fafc;border-bottom:1px solid #e5e7eb;padding:10px 12px;font-size:12px;font-weight:950;color:#667085;text-transform:uppercase;letter-spacing:.06em}
+.risk-preview-head span{font-size:11px;text-transform:none;letter-spacing:0;color:#475467;font-weight:800}
+.risk-preview-img{display:block;width:100%;max-height:280px;object-fit:contain;background:#f8fafc}
+.risk-preview-empty{margin:12px 0 14px;border:1px dashed #cbd5e1;border-radius:16px;background:#f8fafc;color:#667085;padding:12px 14px;font-size:13px;line-height:1.4}
+
 </style>
 </head>
 <body>
@@ -621,6 +628,91 @@ function buildEvidenceItems(r,insight){
 }
 
 
+
+function riskBboxValue(r){
+  const ev=r?.risk_evidence||{};
+  const bbox=firstValue(r?.bbox, ev?.bbox);
+
+  if(Array.isArray(bbox) && bbox.length===4){
+    return bbox.map(x=>Number(x)).join(",");
+  }
+
+  if(typeof bbox==="string" && bbox.split(",").length===4){
+    return bbox;
+  }
+
+  return "";
+}
+
+function thresholdLabel(r,insight){
+  const check=String(r?.check||"").toUpperCase();
+
+  if(check==="SMALL_TEXT_RISK"){
+    const warn=firstValue(r?.profile_warning_threshold_pt, r?.warning_threshold_pt, insight?.warning_threshold_pt, 5.0);
+    const crit=firstValue(r?.profile_critical_threshold_pt, r?.critical_threshold_pt, insight?.critical_threshold_pt, 4.0);
+    return `WARN < ${warn} pt | CRIT < ${crit} pt`;
+  }
+
+  if(check==="LOW_IMAGE_RESOLUTION"){
+    const min=firstValue(r?.profile_minimum_dpi, r?.minimum_dpi, insight?.minimum_dpi, 300);
+    const crit=firstValue(r?.profile_critical_dpi, r?.critical_dpi, insight?.critical_dpi, 200);
+    return `Mínimo ${min} dpi | Crítico < ${crit} dpi`;
+  }
+
+  if(check==="BARCODE_RISK"){
+    const min=firstValue(r?.profile_minimum_image_dpi, r?.minimum_image_dpi, insight?.minimum_image_dpi, 300);
+    const crit=firstValue(r?.profile_critical_image_dpi, r?.critical_image_dpi, insight?.critical_image_dpi, 200);
+    return `Barcode/QR recomendado ≥ ${min} dpi | Crítico < ${crit} dpi`;
+  }
+
+  if(check==="SEPARATION_COUNT_RISK"){
+    const max=firstValue(r?.profile_max_printing_units, r?.max_printing_units, insight?.max_printing_units, 8);
+    const crit=firstValue(r?.profile_critical_separation_count, r?.critical_separation_count, insight?.critical_separation_count, 12);
+    return `Perfil: hasta ${max} tintas | Crítico > ${crit}`;
+  }
+
+  if(check==="HIGH_TAC_RISK"){
+    const limit=firstValue(r?.profile_tac_limit, r?.tac_limit, insight?.tac_limit, 280);
+    return `Límite TAC ${limit}%`;
+  }
+
+  if(check==="PDF_STRUCTURE_RISK"){
+    return "Umbral según tamaño, páginas vacías y complejidad de objetos";
+  }
+
+  if(check==="SPOT_COLOR_RISK"){
+    return "Criterio: blancos, spots duplicados, nombres genéricos y separaciones técnicas";
+  }
+
+  return firstValue(r?.criteria, insight?.criteria, r?.threshold, insight?.threshold, "Umbral no informado");
+}
+
+function renderRiskVisualEvidence(r){
+  const ev=r?.risk_evidence||{};
+  const bbox=riskBboxValue(r);
+  const page=firstValue(r?.page, ev?.page, 1);
+
+  if(!bbox){
+    return `
+      <div class="risk-preview-empty">
+        Riesgo global del archivo. No hay una zona visual única y confiable para marcar en el arte.
+      </div>
+    `;
+  }
+
+  const src=`/api/risk-preview?sid=${encodeURIComponent(SID||"")}&page=${encodeURIComponent(page||1)}&bbox=${encodeURIComponent(bbox)}`;
+
+  return `
+    <div class="risk-preview-box">
+      <div class="risk-preview-head">
+        Zona sugerida ampliada
+        <span>Página ${esc(page||1)}</span>
+      </div>
+      <img class="risk-preview-img" src="${src}" alt="Vista previa anotada del riesgo seleccionado"/>
+    </div>
+  `;
+}
+
 function renderEvidencePanel(r,insight){
   const items=buildEvidenceItems(r,insight);
 
@@ -834,6 +926,19 @@ function renderRisks(risks){
     </div>`).join("");
 }
 
+
+function updateThresholdCardAfterRender(r,insight){
+  const root=$("riskDetail");
+  if(!root)return;
+
+  const value=esc(thresholdLabel(r,insight));
+
+  root.innerHTML = root.innerHTML
+    .replace(/Regla definida por Gate0/g, value)
+    .replace(/\$\{esc\(thresholdLabel\(r,insight\)\)\}/g, value)
+    .replace(/Umbral no informado por Gate0/g, value);
+}
+
 function selectRisk(i){
   document.querySelectorAll(".risk-item").forEach(x=>x.classList.remove("active"));
   const el=$("risk-"+i); if(el)el.classList.add("active");
@@ -848,6 +953,7 @@ function selectRisk(i){
       <span class="badge ${esc(sev(r))}">${esc(sev(r))}</span>
     </div>
 
+    ${renderRiskVisualEvidence(r)}
     <div class="detail-comment">${esc(r.expert_comment||insight.brief_comment||r.risk_reason||"Revisar hallazgo.")}</div>
 
     <div class="detail-grid">
@@ -882,6 +988,7 @@ function selectRisk(i){
       <button class="future-btn" disabled>⚡ Sugerir correcciones</button>
     </div>
   `;
+  updateThresholdCardAfterRender(r,insight);
 }
 
 

@@ -2,6 +2,7 @@ import sys
 import json
 import csv
 import re
+import os
 from pathlib import Path
 from datetime import datetime
 
@@ -797,33 +798,70 @@ def check_spot_color_risk(separations):
 
 def check_separation_count_risk(separations, process_colors=None):
     findings = []
-    inventory = build_spot_inventory(separations)
+
+    # Source of truth for operational count:
+    # use the same classifier used by Color Separation Summary.
+    try:
+        from gate0.services.separation_intelligence_service import SeparationIntelligenceService
+        summary = SeparationIntelligenceService().build_summary(separations)
+        items = summary.get("items", []) if isinstance(summary, dict) else []
+    except Exception:
+        items = []
 
     process_colors = process_colors or []
     process_colors = [c for c in ["C", "M", "Y", "K"] if c in set(process_colors)]
 
-    process_count = len(process_colors)
-    printable_spot_count = inventory["printable_spot_count"]
-    printable_count = process_count + printable_spot_count
+    if items:
+        printable_items = [
+            i for i in items
+            if i.get("type") in {"Process", "Spot", "Blanco"}
+        ]
 
-    if process_count > 0:
-        process_count_source = "DETECTED_PROCESS_COLORS"
+        process_items = [i for i in printable_items if i.get("type") == "Process"]
+        spot_items = [i for i in printable_items if i.get("type") in {"Spot", "Blanco"}]
+
+        printable_count = len(printable_items)
+        process_count = len(process_items)
+        printable_spot_count = len(spot_items)
+        process_count_source = "SEPARATION_SUMMARY_CLASSIFICATION"
         process_detection_confidence = "MEDIUM"
+        process_colors_detected = [i.get("name") for i in process_items]
+        technical_detected = any(i.get("type") in {"Plano", "Technical"} for i in items)
+        white_detected = any(i.get("type") == "Blanco" for i in items)
+        varnish_detected = any(
+            "varnish" in str(i.get("name", "")).lower()
+            or "barniz" in str(i.get("name", "")).lower()
+            for i in items
+        )
     else:
-        process_count_source = "NO_PROCESS_COLORS_DETECTED"
-        process_detection_confidence = "LOW"
+        inventory = build_spot_inventory(separations)
+        process_count = len(process_colors)
+        printable_spot_count = inventory["printable_spot_count"]
+        printable_count = process_count + printable_spot_count
+        process_colors_detected = process_colors
+
+        if process_count > 0:
+            process_count_source = "DETECTED_PROCESS_COLORS"
+            process_detection_confidence = "MEDIUM"
+        else:
+            process_count_source = "NO_PROCESS_COLORS_DETECTED"
+            process_detection_confidence = "LOW"
+
+        white_detected = inventory["white_spot_count"] > 0
+        varnish_detected = inventory["varnish_spot_count"] > 0
+        technical_detected = inventory["technical_spot_count"] > 0
 
     context_data = {
         "printable_separation_count": printable_count,
         "process_count": process_count,
         "process_color_count": process_count,
-        "process_colors_detected": process_colors,
+        "process_colors_detected": process_colors_detected,
         "process_count_source": process_count_source,
         "process_detection_confidence": process_detection_confidence,
         "printable_spot_count": printable_spot_count,
-        "white_detected": inventory["white_spot_count"] > 0,
-        "varnish_detected": inventory["varnish_spot_count"] > 0,
-        "technical_separations_detected": inventory["technical_spot_count"] > 0
+        "white_detected": white_detected,
+        "varnish_detected": varnish_detected,
+        "technical_separations_detected": technical_detected,
     }
 
     if printable_count <= 8:
@@ -1003,7 +1041,8 @@ def analyze_pdf(pdf_path):
         findings.extend(check_rgb_objects(page_stream, page_number))
         image_findings = []
         image_findings.extend(check_low_resolution_images(page, page_number))
-        image_findings.extend(check_barcode_risk(page, page_number))
+        if os.getenv("GATE0_ENABLE_BARCODE_RISK", "").strip().lower() in {"1", "true", "yes", "on"}:
+            image_findings.extend(check_barcode_risk(page, page_number))
         findings.extend(dedupe_lowres_against_barcode(image_findings))
         findings.extend(check_small_text(page, page_number))
         findings.extend(check_high_tac(page_stream, page_number))
