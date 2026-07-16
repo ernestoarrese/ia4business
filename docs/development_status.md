@@ -691,3 +691,30 @@ Nunca una sin la otra.
 - Si no hay caja confiable, Gate0 mantiene comportamiento actual.
 
 ---
+
+## Backlog — Risk Visual Evidence Occurrence Navigation
+
+Cuando un Top Risk tenga múltiples ocurrencias detectadas, el panel de Riesgo seleccionado debería permitir navegar entre ocurrencias.
+
+Ejemplo:
+
+- Texto pequeño / legibilidad: 25 ocurrencias detectadas.
+- Mostrar navegación: Anterior / Siguiente.
+- Mostrar contador: 1 / 25.
+- Al cambiar ocurrencia, actualizar:
+    - preview ampliada,
+    - bbox,
+    - evidencia técnica,
+    - texto detectado,
+    - área imprimible,
+    - solape con área útil.
+
+Prioridad inicial:
+
+1. SMALL_TEXT_RISK
+2. LOW_IMAGE_RESOLUTION
+3. Otros riesgos con bbox confiable
+
+Objetivo: que Gate0 no solo diga que existen 25 ocurrencias, sino que permita revisarlas una por una desde el dashboard.
+
+---
