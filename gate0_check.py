@@ -16,6 +16,7 @@ from config.spot_utils import build_spot_inventory
 from expert_comment_engine import enrich_report_with_expert_insights
 from check_intelligence import enrich_findings_with_check_intelligence
 from risk_evidence_engine import enrich_report_with_risk_evidence
+from collections import Counter
 
 
 SUPPORTED_EXTENSIONS = [".pdf", ".ai"]
@@ -820,139 +821,153 @@ def detect_process_colors_from_pdf(pdf_path, min_channel_percent=0.1):
     return [c for c in order if c in detected]
 
 def check_spot_color_risk(separations):
+    """
+    Spot Color Risk must use the same separation classification as
+    Color Separation Summary.
+
+    Important:
+    - This check counts printable spot/white inks only.
+    - It must not count process colors.
+    - It must not count plano/technical separations.
+    - Total operative separations are handled by SEPARATION_COUNT_RISK.
+    """
     findings = []
-    inventory = build_spot_inventory(separations)
 
-    spot_count = inventory["spot_count"]
-    printable_spot_count = inventory["printable_spot_count"]
+    printable_spots = []
+    technical_detected = False
+    source = "SPOT_INVENTORY"
 
-    if spot_count == 0:
-        findings.append({
-            "page": 1,
-            "check": "SPOT_COLOR_RISK",
-            "severity": "LOW",
-            "detail": "Documento sin tintas spot detectadas.",
-            "value": "spot_count=0",
-            "recommendation": "Validar si el trabajo requiere tintas especiales.",
-            "spot_names": [],
-            "spot_count": 0,
-            "printable_spot_count": 0,
-            "phase": "MVP"
-        })
-        return findings
+    try:
+        from gate0.services.separation_intelligence_service import SeparationIntelligenceService
+        summary = SeparationIntelligenceService().build_summary(separations)
+        items = summary.get("items", []) if isinstance(summary, dict) else []
 
-    if inventory["white_spot_count"] == 1:
-        names = [i["original_name"] for i in inventory["white_spots"]]
-        findings.append({
-            "page": 1,
-            "check": "SPOT_COLOR_RISK",
-            "severity": "LOW",
-            "detail": "White Ink detectado como separación spot.",
-            "value": ", ".join(names),
-            "recommendation": "Validar que el blanco corresponda a la intención del arte.",
-            "spot_names": names,
-            "spot_count": spot_count,
-            "printable_spot_count": printable_spot_count,
-            "spot_category": ["WHITE"],
-            "phase": "MVP"
-        })
+        if items:
+            source = "SEPARATION_SUMMARY_CLASSIFICATION"
+            printable_spots = [
+                str(i.get("name", "")).strip()
+                for i in items
+                if i.get("type") in {"Spot", "Blanco"}
+                and str(i.get("name", "")).strip()
+            ]
+            technical_detected = any(
+                i.get("type") in {"Plano", "Technical"}
+                for i in items
+            )
+    except Exception:
+        printable_spots = []
 
-    elif inventory["white_spot_count"] > 1:
-        names = [i["original_name"] for i in inventory["white_spots"]]
-        findings.append({
-            "page": 1,
-            "check": "SPOT_COLOR_RISK",
-            "severity": "MEDIUM",
-            "detail": "Múltiples separaciones de blanco detectadas.",
-            "value": ", ".join(names),
-            "recommendation": "Verificar si corresponden a estrategia intencional de alta opacidad o a duplicidad no deseada.",
-            "spot_names": names,
-            "spot_count": spot_count,
-            "printable_spot_count": printable_spot_count,
-            "spot_category": ["WHITE"],
-            "phase": "MVP"
-        })
+    if not printable_spots:
+        inventory = build_spot_inventory(separations)
+        printable_spots = [
+            str(x).strip()
+            for x in inventory.get("printable_spots", [])
+            if str(x).strip()
+        ]
+        technical_detected = inventory.get("technical_spot_count", 0) > 0
 
-    if inventory["technical_spots"]:
-        names = [i["original_name"] for i in inventory["technical_spots"]]
-        findings.append({
-            "page": 1,
-            "check": "SPOT_COLOR_RISK",
-            "severity": "LOW",
-            "detail": "Separación técnica detectada.",
-            "value": ", ".join(names),
-            "recommendation": "Verificar que la separación técnica no sea tratada como tinta imprimible.",
-            "spot_names": names,
-            "spot_count": spot_count,
-            "printable_spot_count": printable_spot_count,
-            "spot_category": ["TECHNICAL"],
-            "phase": "MVP"
-        })
+    printable_spot_count = len(printable_spots)
 
-    if inventory["suspicious_spots"]:
-        names = [i["original_name"] for i in inventory["suspicious_spots"]]
-        findings.append({
-            "page": 1,
-            "check": "SPOT_COLOR_RISK",
-            "severity": "MEDIUM",
-            "detail": "Spot con nombre genérico o sospechoso detectado.",
-            "value": ", ".join(names),
-            "recommendation": "Renombrar la separación con un nombre técnico o de tinta real antes de liberar a producción.",
-            "spot_names": names,
-            "spot_count": spot_count,
-            "printable_spot_count": printable_spot_count,
-            "spot_category": ["SUSPICIOUS"],
-            "phase": "MVP"
-        })
+    def _normalize_spot_name_local(value):
+        return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
 
-    if inventory["duplicate_groups"]:
-        names = []
-        for group in inventory["duplicate_groups"].values():
-            names.extend(group)
+    normalized = [
+        _normalize_spot_name_local(name)
+        for name in printable_spots
+        if name
+    ]
+    duplicates = sorted([
+        name for name, count in Counter(normalized).items()
+        if name and count > 1
+    ])
 
-        findings.append({
-            "page": 1,
-            "check": "SPOT_COLOR_RISK",
-            "severity": "MEDIUM",
-            "detail": "Posible duplicidad de tinta spot por nombres inconsistentes.",
-            "value": ", ".join(names),
-            "recommendation": "Normalizar nombres de tintas spot para evitar separaciones duplicadas, errores de formulación o tintas adicionales innecesarias.",
-            "spot_names": names,
-            "spot_count": spot_count,
-            "printable_spot_count": printable_spot_count,
-            "spot_category": ["DUPLICATE"],
-            "phase": "MVP"
-        })
+    generic_spots = []
+    for name in printable_spots:
+        compact = _normalize_spot_name_local(name)
+        if compact in {"spot", "spot1", "spot2", "spot3", "tinta", "tinta1", "tinta2", "color", "color1"}:
+            generic_spots.append(name)
+
+    white_spots = [
+        name for name in printable_spots
+        if "white" in name.lower()
+        or "blanco" in name.lower()
+    ]
+
+    example = printable_spots[0] if printable_spots else "-"
+
+    base_context = {
+        "printable_spot_count": printable_spot_count,
+        "spot_count": printable_spot_count,
+        "spot_names_detected": printable_spots,
+        "duplicate_spot_names": duplicates,
+        "generic_spot_names": generic_spots,
+        "white_spot_count": len(white_spots),
+        "technical_separations_detected": technical_detected,
+        "separation_count_source": source,
+    }
 
     if printable_spot_count > 12:
-        names = [i["original_name"] for i in inventory["spots"] if i["category"] == "PRINTABLE"]
         findings.append({
             "page": 1,
             "check": "SPOT_COLOR_RISK",
             "severity": "HIGH",
-            "detail": "Exceso crítico de tintas spot imprimibles.",
-            "value": f"printable_spot_count={printable_spot_count}",
-            "recommendation": "Revisar racionalización de separaciones spot para reducir complejidad, costo y riesgo operativo.",
-            "spot_names": names,
-            "spot_count": spot_count,
-            "printable_spot_count": printable_spot_count,
-            "spot_category": ["PRINTABLE_EXCESS"],
+            "detail": (
+                f"Se detectaron {printable_spot_count} tintas spot/blanco imprimibles. "
+                "La cantidad supera el umbral crítico del perfil operativo."
+            ),
+            "value": f"{printable_spot_count} tinta(s) spot/blanco imprimible(s); ejemplo: {example}",
+            "recommendation": "Racionalizar separaciones spot antes de liberar.",
+            **base_context,
             "phase": "MVP"
         })
-
     elif printable_spot_count >= 9:
-        names = [i["original_name"] for i in inventory["spots"] if i["category"] == "PRINTABLE"]
         findings.append({
             "page": 1,
             "check": "SPOT_COLOR_RISK",
             "severity": "MEDIUM",
-            "detail": "Cantidad elevada de tintas spot imprimibles.",
-            "value": f"printable_spot_count={printable_spot_count}",
-            "recommendation": "Revisar racionalización de separaciones spot para reducir complejidad, costo y riesgo operativo.",
-            "spot_names": names,
-            "spot_count": spot_count,
-            "printable_spot_count": printable_spot_count,
-            "spot_category": ["PRINTABLE_HIGH"],
+            "detail": (
+                f"Se detectaron {printable_spot_count} tintas spot/blanco imprimibles. "
+                "La cantidad es elevada y puede aumentar complejidad operativa."
+            ),
+            "value": f"{printable_spot_count} tinta(s) spot/blanco imprimible(s); ejemplo: {example}",
+            "recommendation": "Revisar si todas las tintas spot son necesarias o si alguna puede racionalizarse.",
+            **base_context,
+            "phase": "MVP"
+        })
+
+    if duplicates:
+        findings.append({
+            "page": 1,
+            "check": "SPOT_COLOR_RISK",
+            "severity": "MEDIUM",
+            "detail": "Se detectaron posibles tintas spot duplicadas o equivalentes.",
+            "value": ", ".join(duplicates[:8]),
+            "recommendation": "Normalizar nombres y validar si corresponden a la misma tinta.",
+            **base_context,
+            "phase": "MVP"
+        })
+
+    if generic_spots:
+        findings.append({
+            "page": 1,
+            "check": "SPOT_COLOR_RISK",
+            "severity": "MEDIUM",
+            "detail": "Una o más separaciones spot podrían tener nombres genéricos o poco claros.",
+            "value": ", ".join(generic_spots[:8]),
+            "recommendation": "Renombrar separaciones spot con nomenclatura clara antes de liberar.",
+            **base_context,
+            "phase": "MVP"
+        })
+
+    if len(white_spots) > 1:
+        findings.append({
+            "page": 1,
+            "check": "SPOT_COLOR_RISK",
+            "severity": "MEDIUM",
+            "detail": "Se detectaron múltiples separaciones asociadas a blanco.",
+            "value": ", ".join(white_spots[:8]),
+            "recommendation": "Unificar o confirmar la intención de cada blanco antes de liberar.",
+            **base_context,
             "phase": "MVP"
         })
 

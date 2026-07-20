@@ -773,3 +773,22 @@ Objetivo futuro:
 - Segunda prioridad: `LOW_IMAGE_RESOLUTION` cuando varias imágenes/fragmentos correspondan a una misma zona visual.
 
 ---
+
+
+## Hotfix — Spot Count Alignment + Occurrence Navigation Guard
+
+Se corrigen dos inconsistencias detectadas en validación visual:
+
+1. `SPOT_COLOR_RISK` debe usar la misma clasificación que `Color Separation Summary`.
+    - Cuenta solo tintas `Spot` y `Blanco` imprimibles.
+    - Excluye process colors.
+    - Excluye separaciones `Plano` / `Technical`.
+    - El conteo total operativo queda reservado para `SEPARATION_COUNT_RISK`.
+
+2. La navegación de ocurrencias solo debe mostrarse para riesgos visuales con `bbox`.
+    - Aplica a `SMALL_TEXT_RISK`.
+    - Aplica a `LOW_IMAGE_RESOLUTION`.
+    - Aplica a `BARCODE_RISK` solo cuando se reactive y tenga bbox confiable.
+    - No aplica a `SPOT_COLOR_RISK`, porque es un riesgo global/configuración.
+
+---

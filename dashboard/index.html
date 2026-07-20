@@ -619,10 +619,32 @@ function pushEvidence(items,label,value,suffix=""){
 }
 
 
-function riskOccurrences(r){
-  const items=Array.isArray(r?.occurrences)?r.occurrences:[];
-  return items.filter(x=>x && (x.bbox || x.value || x.detail || x.sample_text));
+function isOccurrenceNavigableRisk(r){
+  const check=String(r?.check||"").toUpperCase();
+
+  // Navigation is only useful when each occurrence is a real visual location.
+  return [
+    "SMALL_TEXT_RISK",
+    "LOW_IMAGE_RESOLUTION",
+    "BARCODE_RISK"
+  ].includes(check);
 }
+
+function hasUsableBbox(item){
+  const bbox=item?.bbox;
+  if(Array.isArray(bbox) && bbox.length===4)return true;
+  if(typeof bbox==="string" && bbox.split(",").length===4)return true;
+  return false;
+}
+
+function riskOccurrences(r){
+  if(!isOccurrenceNavigableRisk(r))return [];
+
+  const items=Array.isArray(r?.occurrences)?r.occurrences:[];
+
+  return items.filter(x=>x && hasUsableBbox(x));
+}
+
 
 function clampOccurrenceIndex(r,index){
   const total=riskOccurrences(r).length;
