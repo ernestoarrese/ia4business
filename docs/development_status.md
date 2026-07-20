@@ -718,3 +718,20 @@ Prioridad inicial:
 Objetivo: que Gate0 no solo diga que existen 25 ocurrencias, sino que permita revisarlas una por una desde el dashboard.
 
 ---
+
+
+## Risk Evidence Quality v1
+
+- Se mejora el bloque `Riesgo seleccionado` del dashboard.
+- Se agrega resumen ejecutivo del riesgo:
+    - Tipo de riesgo
+    - Confianza
+    - Alcance
+    - Área imprimible
+    - Umbral / criterio
+    - Tipo de corrección
+- El umbral visible usa `thresholdLabel(r, insight)` en vez de depender solo de `risk_evidence.threshold`.
+- Se mantiene la preview visual ampliada para riesgos con `bbox`.
+- Se mantiene evidencia técnica desplegable, inteligencia del check, guías específicas y feedback.
+
+---

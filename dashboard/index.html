@@ -271,6 +271,15 @@
 .risk-preview-img{display:block;width:100%;max-height:280px;object-fit:contain;background:#f8fafc}
 .risk-preview-empty{margin:12px 0 14px;border:1px dashed #cbd5e1;border-radius:16px;background:#f8fafc;color:#667085;padding:12px 14px;font-size:13px;line-height:1.4}
 
+
+.risk-quality-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 14px}
+.risk-quality-card{border:1px solid #e5e7eb;background:#f8fafc;border-radius:14px;padding:10px 12px}
+.risk-quality-card b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#667085;margin-bottom:4px}
+.risk-quality-card div{font-size:13px;font-weight:850;color:#111827;line-height:1.35}
+.risk-quality-pill{display:inline-flex;align-items:center;border:1px solid #d0d5dd;background:white;border-radius:999px;padding:4px 8px;font-size:12px;font-weight:850;color:#344054}
+.detail-grid.enhanced{grid-template-columns:1fr 1fr}
+@media(max-width:1000px){.risk-quality-grid,.detail-grid.enhanced{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -724,6 +733,158 @@ function renderRiskVisualEvidence(r){
   `;
 }
 
+
+function friendlyAreaSource(source){
+  const map={
+    TRIMBOX_CONFIRMED:"TrimBox confirmado",
+    ARTBOX_FALLBACK:"ArtBox fallback",
+    CROPBOX_FALLBACK:"CropBox fallback",
+    UNCONFIRMED_FULL_PAGE:"Área no confirmada",
+    NO_PAGE_BOX:"Sin cajas PDF"
+  };
+  return map[source]||source||"No informado";
+}
+
+function riskTypeLabel(r){
+  const check=String(r?.check||"").toUpperCase();
+  const bbox=riskBboxValue(r);
+
+  if(bbox)return "Visual localizado";
+
+  if(["SPOT_COLOR_RISK","SEPARATION_COUNT_RISK","WHITE_INK_RISK"].includes(check)){
+    return "Configuración / separaciones";
+  }
+
+  if(["PDF_STRUCTURE_RISK","FONT_NOT_EMBEDDED"].includes(check)){
+    return "Global del archivo";
+  }
+
+  if(["HIGH_TAC_RISK","OVERPRINT_RISK","RGB_OBJECT"].includes(check)){
+    return "Riesgo técnico de arte";
+  }
+
+  return "Riesgo operativo";
+}
+
+function riskScopeLabel(r){
+  const check=String(r?.check||"").toUpperCase();
+  const bbox=riskBboxValue(r);
+
+  if(bbox)return "Zona específica del arte";
+
+  if(["SPOT_COLOR_RISK","SEPARATION_COUNT_RISK","WHITE_INK_RISK"].includes(check)){
+    return "Separaciones del archivo";
+  }
+
+  if(["PDF_STRUCTURE_RISK","FONT_NOT_EMBEDDED"].includes(check)){
+    return "Archivo completo";
+  }
+
+  return "Alcance no localizado";
+}
+
+function printableAreaLabel(r){
+  const source=friendlyAreaSource(r?.printable_area_source);
+
+  if(r?.is_inside_printable_area===true){
+    return `Dentro del área útil · ${source}`;
+  }
+
+  if(r?.is_inside_printable_area===false){
+    const overlap=r?.printable_area_overlap_percent;
+    return `Fuera del área útil · ${source}${overlap!=null?` · solape ${overlap}%`:""}`;
+  }
+
+  if(riskBboxValue(r)){
+    return `Área no confirmada · ${source}`;
+  }
+
+  return "No aplica";
+}
+
+function riskConfidenceLabel(r,insight){
+  const ev=r?.risk_evidence||{};
+  const raw=firstValue(
+    r?.confidence,
+    r?.detection_confidence,
+    r?.process_detection_confidence,
+    r?.barcode_confidence,
+    ev?.confidence,
+    insight?.confidence
+  );
+
+  if(raw)return raw;
+
+  if(riskBboxValue(r) && r?.printable_area_source==="TRIMBOX_CONFIRMED"){
+    return "Alta";
+  }
+
+  if(riskBboxValue(r)){
+    return "Media";
+  }
+
+  const check=String(r?.check||"").toUpperCase();
+
+  if(["SPOT_COLOR_RISK","SEPARATION_COUNT_RISK","PDF_STRUCTURE_RISK"].includes(check)){
+    return "Media";
+  }
+
+  return "No informada";
+}
+
+function fixTypeLabel(r){
+  const value=String(r?.fix_type||"").toLowerCase();
+  const map={
+    manual:"Manual",
+    assisted:"Asistida",
+    autofix_candidate:"Autofix candidato",
+    blocked:"Bloqueada",
+    not_applicable:"No aplica"
+  };
+  return map[value]||value||"No informado";
+}
+
+function recommendedActionLabel(r,insight){
+  return firstValue(
+    insight?.recommended_action,
+    r?.recommended_action,
+    r?.action,
+    r?.recommendation,
+    "Revisar antes de liberar."
+  );
+}
+
+function renderRiskQualitySummary(r,insight){
+  return `
+    <div class="risk-quality-grid">
+      <div class="risk-quality-card">
+        <b>Tipo de riesgo</b>
+        <div>${esc(riskTypeLabel(r))}</div>
+      </div>
+      <div class="risk-quality-card">
+        <b>Confianza</b>
+        <div>${esc(riskConfidenceLabel(r,insight))}</div>
+      </div>
+      <div class="risk-quality-card">
+        <b>Alcance</b>
+        <div>${esc(riskScopeLabel(r))}</div>
+      </div>
+      <div class="risk-quality-card">
+        <b>Área imprimible</b>
+        <div>${esc(printableAreaLabel(r))}</div>
+      </div>
+      <div class="risk-quality-card">
+        <b>Umbral / criterio</b>
+        <div>${esc(thresholdLabel(r,insight))}</div>
+      </div>
+      <div class="risk-quality-card">
+        <b>Tipo de corrección</b>
+        <div>${esc(fixTypeLabel(r))}</div>
+      </div>
+    </div>
+  `;
+}
+
 function renderEvidencePanel(r,insight){
   const items=buildEvidenceItems(r,insight);
 
@@ -958,29 +1119,39 @@ function selectRisk(i){
   const ev=r.risk_evidence||{};
   const insight=r.expert_insight||{};
   const evidenceHtml=renderEvidencePanel(r,insight);
+  const actionText=recommendedActionLabel(r,insight);
+
   $("riskDetail").innerHTML=`
     <div class="risk-top">
       <h2>${esc(r.title||displayName(r.check))}</h2>
       <span class="badge ${esc(sev(r))}">${esc(sev(r))}</span>
     </div>
 
+    ${renderRiskQualitySummary(r,insight)}
+
     ${renderRiskVisualEvidence(r)}
+
     <div class="detail-comment">${esc(r.expert_comment||insight.brief_comment||r.risk_reason||"Revisar hallazgo.")}</div>
 
-    <div class="detail-grid">
+    <div class="detail-grid enhanced">
       <div class="info-box">
         <b>Detectado</b>
         <div>${esc(ev.detected_value||insight.evidence?.detected_value||r.value||r.detail||"-")}</div>
       </div>
 
       <div class="info-box">
-        <b>Umbral / criterio</b>
-        <div>${esc(ev.threshold||"-")}</div>
+        <b>Impacto en decisión</b>
+        <div>${esc(riskPossibleImpact(r))}</div>
       </div>
 
       <div class="info-box">
-        <b>Impacto en decisión</b>
-        <div>${esc(r.decision_impact||"Contribuye a la evaluación general del archivo.")}</div>
+        <b>Acción recomendada</b>
+        <div>${esc(actionText)}</div>
+      </div>
+
+      <div class="info-box">
+        <b>Alcance v1</b>
+        <div>${esc(r.do_not_claim||"Gate0 orienta la revisión; la liberación final sigue siendo criterio de preprensa.")}</div>
       </div>
     </div>
 
@@ -991,19 +1162,17 @@ function selectRisk(i){
     ${renderGuidancePanel(r)}
 
     <div class="action-row">
+      <button onclick="setFeedbackScore(1)">Útil</button>
+      <button onclick="setFeedbackScore(-1)">No útil</button>
       <div class="info-box">
-        <b>Qué hacer ahora</b>
-        <div>${esc(insight.recommended_action||r.action||r.recommendation||"Revisar antes de liberar.")}</div>
+        <b>Feedback</b>
+        <div>Marca si este riesgo ayudó a decidir o si requiere ajuste de criterio.</div>
       </div>
-
-      <button class="future-btn" disabled>⚡ Sugerir correcciones</button>
     </div>
   `;
+
   updateThresholdCardAfterRender(r,insight);
 }
-
-
-let feedbackScore="";
 
 function setFeedbackScore(score){
   feedbackScore=String(score);
