@@ -755,3 +755,21 @@ Objetivo: que Gate0 no solo diga que existen 25 ocurrencias, sino que permita re
 - Prioridad inicial: `SMALL_TEXT_RISK` y `LOW_IMAGE_RESOLUTION`.
 
 ---
+
+## Backlog — Risk Visual Evidence Clustering v2
+
+Durante la validación de Risk Occurrence Navigation v1 se observó que algunos riesgos, especialmente `SMALL_TEXT_RISK`, pueden mostrar muchas ocurrencias dentro del mismo párrafo o bloque visual.
+
+Desde el punto de vista de diseño/preprensa, varias ocurrencias cercanas deberían tratarse como una sola zona problemática.
+
+Objetivo futuro:
+
+- Agrupar ocurrencias cercanas por página y proximidad visual.
+- Mostrar navegación por zona, no solo por ocurrencia individual.
+- Mantener conteo interno de textos/objetos detectados.
+- Mostrar algo como: `6 zonas / 25 textos pequeños`.
+- Generar preview ampliada con el bbox unido de toda la zona o párrafo.
+- Prioridad inicial: `SMALL_TEXT_RISK`.
+- Segunda prioridad: `LOW_IMAGE_RESOLUTION` cuando varias imágenes/fragmentos correspondan a una misma zona visual.
+
+---
