@@ -280,6 +280,13 @@
 .detail-grid.enhanced{grid-template-columns:1fr 1fr}
 @media(max-width:1000px){.risk-quality-grid,.detail-grid.enhanced{grid-template-columns:1fr}}
 
+
+.occurrence-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 12px;padding:10px 12px;border:1px solid #e5e7eb;background:#f8fafc;border-radius:16px}
+.occurrence-nav button{border:1px solid #d0d5dd;background:#fff;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:900;color:#344054;cursor:pointer}
+.occurrence-nav button:disabled{opacity:.45;cursor:not-allowed}
+.occurrence-counter{font-size:12px;font-weight:950;color:#344054}
+.occurrence-caption{font-size:11px;color:#667085;margin-top:2px;text-align:center}
+
 </style>
 </head>
 <body>
@@ -396,7 +403,7 @@ function displayName(check){
   return CHECK_NAMES[check] || check;
 }
 
-let currentReport=null,currentRisks=[];
+let currentReport=null,currentRisks=[],currentSelectedRiskIndex=0,currentOccurrenceIndex=0;
 
 function sev(r){return r.business_severity||r.severity||"INFO"}
 function esc(s){return String(s??"-").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
@@ -611,6 +618,73 @@ function pushEvidence(items,label,value,suffix=""){
   items.push({label,value:formatted + suffix});
 }
 
+
+function riskOccurrences(r){
+  const items=Array.isArray(r?.occurrences)?r.occurrences:[];
+  return items.filter(x=>x && (x.bbox || x.value || x.detail || x.sample_text));
+}
+
+function clampOccurrenceIndex(r,index){
+  const total=riskOccurrences(r).length;
+  if(!total)return 0;
+  return Math.max(0,Math.min(Number(index||0),total-1));
+}
+
+function activeRiskOccurrence(r){
+  const items=riskOccurrences(r);
+  if(!items.length)return null;
+  return items[clampOccurrenceIndex(r,currentOccurrenceIndex)];
+}
+
+function riskDataForActiveOccurrence(r){
+  const occ=activeRiskOccurrence(r);
+  if(!occ)return r;
+
+  const merged={...r,...occ};
+
+  // Keep grouped Top Risk identity while allowing occurrence-specific evidence.
+  merged.check=r.check;
+  merged.title=r.title;
+  merged.occurrence_count=r.occurrence_count;
+  merged.occurrences=r.occurrences;
+  merged.max_score_weight=r.max_score_weight;
+  merged.max_severity_score=r.max_severity_score;
+  merged.risk_evidence={...(r.risk_evidence||{}),...(occ.risk_evidence||{})};
+  merged.expert_insight=r.expert_insight;
+
+  return merged;
+}
+
+function renderOccurrenceNav(r){
+  const items=riskOccurrences(r);
+  if(items.length<=1)return "";
+
+  const idx=clampOccurrenceIndex(r,currentOccurrenceIndex);
+  const label=items[idx]?.sample_text||items[idx]?.value||items[idx]?.detail||"Ocurrencia seleccionada";
+
+  return `
+    <div class="occurrence-nav">
+      <button onclick="changeRiskOccurrence(-1)" ${idx<=0?"disabled":""}>← Anterior</button>
+      <div>
+        <div class="occurrence-counter">${esc(idx+1)} / ${esc(items.length)}</div>
+        <div class="occurrence-caption">${esc(label)}</div>
+      </div>
+      <button onclick="changeRiskOccurrence(1)" ${idx>=items.length-1?"disabled":""}>Siguiente →</button>
+    </div>
+  `;
+}
+
+function changeRiskOccurrence(delta){
+  const r=currentRisks[currentSelectedRiskIndex];
+  if(!r)return;
+
+  const total=riskOccurrences(r).length;
+  if(total<=1)return;
+
+  const next=clampOccurrenceIndex(r,currentOccurrenceIndex+delta);
+  selectRisk(currentSelectedRiskIndex,next);
+}
+
 function buildEvidenceItems(r,insight){
   const ev=(insight&&insight.evidence)||{};
   const items=[];
@@ -623,11 +697,9 @@ function buildEvidenceItems(r,insight){
   pushEvidence(items,"Límite TAC",firstValue(r.tac_limit,ev.tac_limit),"%");
   pushEvidence(items,"Tamaño texto",firstValue(r.font_size_pt,ev.font_size_pt)," pt");
   pushEvidence(items,"Altura texto",firstValue(r.text_height_mm,ev.text_height_mm)," mm");
+  pushEvidence(items,"Texto",firstValue(r.sample_text,ev.sample_text));
   pushEvidence(items,"Área objeto",firstValue(r.object_area_percent,ev.object_area_percent),"%");
   pushEvidence(items,"Image role",firstValue(r.image_role,ev.image_role));
-  pushEvidence(items,"Barcode tipo",firstValue(r.barcode_candidate_type,ev.barcode_candidate_type));
-  pushEvidence(items,"Confianza",firstValue(r.barcode_confidence,ev.barcode_confidence,ev.confidence));
-  pushEvidence(items,"Método detección",firstValue(r.detection_method,ev.detection_method));
   pushEvidence(items,"Spot",firstValue(r.spot_name,r.separation_name,r.ink_name,ev.spot_name,ev.separation_name));
   pushEvidence(items,"Separaciones",firstValue(r.printable_separation_count,r.separation_count,ev.printable_separation_count,ev.separation_count));
   pushEvidence(items,"bbox",firstValue(r.bbox,ev.bbox));
@@ -644,9 +716,8 @@ function buildEvidenceItems(r,insight){
   pushEvidence(items,"Solape área útil",r.printable_area_overlap_percent!=null?`${r.printable_area_overlap_percent}%`:null);
   pushEvidence(items,"Regla",firstValue(ev.rule_applied,r.check));
 
-  return items.slice(0,10);
+  return items.slice(0,12);
 }
-
 
 
 function riskBboxValue(r){
@@ -1088,7 +1159,7 @@ function renderRisks(risks){
   const box=$("riskList");
   if(!risks.length){box.innerHTML='<div class="empty">Sin riesgos principales.</div>';return}
   box.innerHTML=risks.map((r,i)=>`
-    <div class="risk-item" id="risk-${i}" onclick="selectRisk(${i})">
+    <div class="risk-item" id="risk-${i}" onclick="selectRisk(${i},0)">
       <div class="risk-top">
         <div class="risk-title">${esc(r.title||displayName(r.check))}</div>
         <span class="badge ${esc(sev(r))}">${esc(sev(r))}</span>
@@ -1111,11 +1182,15 @@ function updateThresholdCardAfterRender(r,insight){
     .replace(/Umbral no informado por Gate0/g, value);
 }
 
-function selectRisk(i){
+function selectRisk(i,occurrenceIndex=0){
   document.querySelectorAll(".risk-item").forEach(x=>x.classList.remove("active"));
   const el=$("risk-"+i); if(el)el.classList.add("active");
-  const r=currentRisks[i]; if(!r)return;
 
+  currentSelectedRiskIndex=i;
+  const baseRisk=currentRisks[i]; if(!baseRisk)return;
+  currentOccurrenceIndex=clampOccurrenceIndex(baseRisk,occurrenceIndex);
+
+  const r=riskDataForActiveOccurrence(baseRisk);
   const ev=r.risk_evidence||{};
   const insight=r.expert_insight||{};
   const evidenceHtml=renderEvidencePanel(r,insight);
@@ -1126,6 +1201,8 @@ function selectRisk(i){
       <h2>${esc(r.title||displayName(r.check))}</h2>
       <span class="badge ${esc(sev(r))}">${esc(sev(r))}</span>
     </div>
+
+    ${renderOccurrenceNav(baseRisk)}
 
     ${renderRiskQualitySummary(r,insight)}
 

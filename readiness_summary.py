@@ -11,6 +11,77 @@ Responsabilidad:
 - Sugerir siguiente acción.
 """
 
+
+def build_occurrence_summary(finding):
+    """
+    Compact occurrence payload for dashboard navigation.
+    Keeps only fields useful to move preview/evidence between occurrences.
+    """
+    allowed = [
+        "check",
+        "page",
+        "value",
+        "detail",
+        "sample_text",
+        "severity",
+        "business_severity",
+        "risk_reason",
+        "action",
+        "recommendation",
+        "bbox",
+        "font_size_pt",
+        "text_height_mm",
+        "font_name",
+        "effective_dpi",
+        "minimum_image_dpi",
+        "critical_image_dpi",
+        "image_index",
+        "object_area_percent",
+        "image_role",
+        "printable_area_source",
+        "printable_area_confidence",
+        "is_inside_printable_area",
+        "printable_area_overlap_percent",
+    ]
+
+    return {
+        key: finding.get(key)
+        for key in allowed
+        if finding.get(key) is not None
+    }
+
+
+def occurrence_key(item):
+    return (
+        item.get("page"),
+        str(item.get("bbox")),
+        str(item.get("value")),
+    )
+
+
+def order_occurrences(best_finding, occurrences, limit=50):
+    """
+    Put the selected best finding first, then the rest without duplicates.
+    """
+    best = build_occurrence_summary(best_finding)
+    best_key = occurrence_key(best)
+
+    ordered = []
+    seen = set()
+
+    for item in [best] + list(occurrences or []):
+        key = occurrence_key(item)
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(item)
+
+        if len(ordered) >= limit:
+            break
+
+    return ordered
+
+
 def sort_top_risks(findings, limit=3):
     """
     Ordena hallazgos por prioridad de negocio, evitando repetir el mismo check.
@@ -60,12 +131,16 @@ def sort_top_risks(findings, limit=3):
             grouped[check] = {
                 "best": finding,
                 "occurrence_count": 1,
+                "occurrences": [build_occurrence_summary(finding)],
                 "max_score_weight": score_weight,
                 "max_severity_score": severity_score,
             }
             continue
 
         grouped[check]["occurrence_count"] += 1
+        if len(grouped[check].get("occurrences", [])) < 50:
+            grouped[check].setdefault("occurrences", []).append(build_occurrence_summary(finding))
+
         grouped[check]["max_score_weight"] = max(
             grouped[check]["max_score_weight"],
             score_weight
@@ -96,6 +171,7 @@ def sort_top_risks(findings, limit=3):
     for check, data in grouped.items():
         item = dict(data["best"])
         item["occurrence_count"] = data["occurrence_count"]
+        item["occurrences"] = order_occurrences(data["best"], data.get("occurrences", []))
         item["max_score_weight"] = data["max_score_weight"]
         item["max_severity_score"] = data["max_severity_score"]
         deduped.append(item)

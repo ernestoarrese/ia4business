@@ -735,3 +735,23 @@ Objetivo: que Gate0 no solo diga que existen 25 ocurrencias, sino que permita re
 - Se mantiene evidencia técnica desplegable, inteligencia del check, guías específicas y feedback.
 
 ---
+
+
+## Risk Occurrence Navigation v1
+
+- `top_risks` ahora puede incluir `occurrences[]` para riesgos agrupados.
+- Cada ocurrencia conserva datos útiles:
+    - `page`
+    - `bbox`
+    - `value`
+    - `sample_text`
+    - `font_size_pt`
+    - `effective_dpi`
+    - `printable_area_source`
+    - `is_inside_printable_area`
+    - `printable_area_overlap_percent`
+- El dashboard permite navegar ocurrencias dentro de `Riesgo seleccionado`.
+- La preview ampliada y la evidencia técnica se actualizan al cambiar de ocurrencia.
+- Prioridad inicial: `SMALL_TEXT_RISK` y `LOW_IMAGE_RESOLUTION`.
+
+---
