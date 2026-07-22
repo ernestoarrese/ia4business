@@ -807,3 +807,39 @@ Criterio:
 - Debe aparecer en el bloque de separaciones no imprimibles/técnicas del dashboard.
 
 ---
+
+
+## Sprint 20A — Separation Classification Contract
+
+Se define `SeparationIntelligenceService` como fuente oficial de clasificación de separaciones.
+
+Tipos oficiales:
+
+- `Process`: imprimible / operativo.
+- `Spot`: imprimible / operativo.
+- `Blanco`: imprimible / operativo.
+- `Barniz`: imprimible / operativo.
+- `Plano`: no imprimible / técnico.
+- `Technical`: no imprimible / técnico.
+
+Reglas clave:
+
+- `C`, `M`, `Y`, `K` puros se clasifican como `Process`.
+- `C PERU`, `M PERU`, `Y PERU`, `K PERU` se clasifican como `Plano`.
+- `Material`, `Sustrato`, `Substrate`, `Dimensions`, `Mechanical Artwork`, `Technical Drawing` se clasifican como `Technical`.
+- `White`, `Blanco`, `Opaque White` se clasifican como `Blanco`.
+- `Barniz`, `Varnish`, `Lacquer`, `Coating` se clasifican como `Barniz`.
+- Todo lo demás se clasifica como `Spot`.
+
+Uso por ubicación:
+
+- Si una separación imprimible aparece 100% fuera del `TrimBox` confirmado y no hay `BleedBox` útil, puede reclasificarse como `Technical` por ubicación.
+- Si está fuera del `TrimBox` pero dentro del `BleedBox`, sigue siendo imprimible.
+- Si no existe información de uso por ubicación, no se reclasifica.
+
+Nota:
+
+- Sprint 20A deja el contrato y el soporte de datos.
+- Sprint 20B debe extraer el uso real por separación dentro/fuera de `TrimBox` / `BleedBox`.
+
+---

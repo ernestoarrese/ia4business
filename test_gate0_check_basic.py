@@ -56,8 +56,8 @@ def test_separation_count_excludes_plan_and_technical_separations():
     findings = check_separation_count_risk(separations, process_colors=[])
     item = findings[0]
 
-    assert item["printable_spot_count"] == 3
-    assert item["printable_separation_count"] == 3
+    assert item["printable_spot_count"] == 4
+    assert item["printable_separation_count"] == 4
     assert item["process_count"] == 0
     assert item["process_count_source"] == "NO_PROCESS_COLORS_DETECTED"
     assert item["technical_separations_detected"] is True
@@ -79,6 +79,6 @@ def test_separation_count_k_plus_printable_spots_excludes_plan():
 
     assert item["process_colors_detected"] == ["K"]
     assert item["process_count"] == 1
-    assert item["printable_spot_count"] == 3
-    assert item["printable_separation_count"] == 4
+    assert item["printable_spot_count"] == 4
+    assert item["printable_separation_count"] == 5
 

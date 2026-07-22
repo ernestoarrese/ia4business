@@ -847,7 +847,7 @@ def check_spot_color_risk(separations):
             printable_spots = [
                 str(i.get("name", "")).strip()
                 for i in items
-                if i.get("type") in {"Spot", "Blanco"}
+                if i.get("type") in {"Spot", "Blanco", "Barniz"}
                 and str(i.get("name", "")).strip()
             ]
             technical_detected = any(
@@ -1030,7 +1030,7 @@ def check_separation_count_risk(separations, process_colors=None):
     if items:
         printable_spot_count = sum(
             1 for i in items
-            if i.get("type") in {"Spot", "Blanco"}
+            if i.get("type") in {"Spot", "Blanco", "Barniz"}
         )
 
         explicit_process_items = [
@@ -1077,11 +1077,7 @@ def check_separation_count_risk(separations, process_colors=None):
 
         technical_detected = any(i.get("type") in {"Plano", "Technical"} for i in items)
         white_detected = any(i.get("type") == "Blanco" for i in items)
-        varnish_detected = any(
-            "varnish" in str(i.get("name", "")).lower()
-            or "barniz" in str(i.get("name", "")).lower()
-            for i in items
-        )
+        varnish_detected = any(i.get("type") == "Barniz" for i in items)
     else:
         process_colors_detected = process_colors
         process_count = len(process_colors_detected)
