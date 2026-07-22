@@ -843,3 +843,26 @@ Nota:
 - Sprint 20B debe extraer el uso real por separación dentro/fuera de `TrimBox` / `BleedBox`.
 
 ---
+
+
+## Sprint 20B1 — Separation Usage Capability Probe
+
+Se agrega un probe experimental para evaluar si el PDF trae señales de bajo nivel suficientes para mapear uso de separaciones.
+
+El probe reporta:
+
+- separaciones detectadas,
+- presencia de recursos `/Separation`,
+- presencia de operadores `cs` / `CS`,
+- presencia de operadores `scn` / `SCN`,
+- páginas con señales de uso de color space,
+- limitaciones actuales.
+
+Decisión importante:
+
+- `safe_for_reclassification` queda en `false`.
+- `can_compute_bbox_by_separation` queda en `false`.
+- Este bloque no cambia conteos ni decisiones operativas.
+- La reclasificación por ubicación queda reservada para una etapa posterior, cuando pueda asociarse separación específica con geometría/bbox confiable.
+
+---

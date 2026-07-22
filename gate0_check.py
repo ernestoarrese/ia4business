@@ -99,6 +99,134 @@ def detect_separations(pdf_path):
     return sorted(separations)
 
 
+
+def _gate0_compact_token(value):
+    return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
+
+
+def detect_separation_usage_capability(pdf_path, separations=None):
+    """
+    Experimental probe.
+
+    Goal:
+    - Detect whether the PDF contains enough low-level signals to attempt
+      separation usage mapping in a future sprint.
+
+    Important:
+    - This does NOT compute bbox by separation.
+    - This does NOT reclassify separations.
+    - This is not safe for operational decisions yet.
+    """
+    separations = separations or []
+
+    result = {
+        "status": "EXPERIMENTAL",
+        "detected_separation_count": len(separations),
+        "separation_names": list(separations),
+        "can_map_separation_resources": False,
+        "can_detect_usage_tokens": False,
+        "can_compute_bbox_by_separation": False,
+        "safe_for_reclassification": False,
+        "resource_separation_mentions": {},
+        "pages_with_usage_tokens": [],
+        "usage_token_count": 0,
+        "colorspace_selector_count": 0,
+        "limitations": [
+            "Probe only detects low-level PDF signals.",
+            "It does not associate each separation with object geometry.",
+            "It does not inspect XObject/transparency/mask nesting reliably.",
+            "It does not compute bbox by separation.",
+            "It must not be used to reclassify separations yet."
+        ],
+    }
+
+    try:
+        doc = fitz.open(pdf_path)
+    except Exception as exc:
+        result["error"] = f"Could not open PDF: {exc}"
+        return result
+
+    objects_text = ""
+
+    try:
+        for xref in range(1, doc.xref_length()):
+            try:
+                objects_text += doc.xref_object(xref, compressed=False) + "\n"
+            except Exception:
+                continue
+
+        result["can_map_separation_resources"] = "/Separation" in objects_text
+
+        for sep in separations:
+            compact_sep = _gate0_compact_token(sep)
+            if not compact_sep:
+                continue
+
+            count = 0
+            for match in re.finditer(r"/Separation\s*/([^\s<>\[\]\(\)]+)", objects_text):
+                found = decode_pdf_name(match.group(1))
+                if _gate0_compact_token(found) == compact_sep:
+                    count += 1
+
+            # fallback: raw compact search in resource text
+            if count == 0 and compact_sep in _gate0_compact_token(objects_text):
+                count = 1
+
+            result["resource_separation_mentions"][sep] = count
+
+        for page_index in range(len(doc)):
+            page = doc[page_index]
+            xrefs = page.get_contents() or []
+
+            page_usage_tokens = 0
+            page_colorspace_selectors = 0
+
+            for xref in xrefs:
+                try:
+                    raw = doc.xref_stream(xref)
+                    text = raw.decode("latin-1", errors="ignore")
+                except Exception:
+                    continue
+
+                # Operators that switch stroking/non-stroking color space:
+                # /CS1 cs  or /CS1 CS
+                selectors = re.findall(r"/[A-Za-z0-9_.#-]+\s+(?:cs|CS)\b", text)
+                # Operators that set Separation/DeviceN tint values:
+                # 0.5 scn / 0.5 SCN
+                tint_ops = re.findall(r"\b(?:scn|SCN)\b", text)
+
+                page_colorspace_selectors += len(selectors)
+                page_usage_tokens += len(tint_ops)
+
+            if page_usage_tokens or page_colorspace_selectors:
+                result["pages_with_usage_tokens"].append({
+                    "page": page_index + 1,
+                    "colorspace_selector_count": page_colorspace_selectors,
+                    "usage_token_count": page_usage_tokens,
+                })
+
+            result["usage_token_count"] += page_usage_tokens
+            result["colorspace_selector_count"] += page_colorspace_selectors
+
+        result["can_detect_usage_tokens"] = (
+            result["usage_token_count"] > 0
+            or result["colorspace_selector_count"] > 0
+        )
+
+        # This remains false until we can associate active separation colors
+        # with concrete object geometry/bbox.
+        result["can_compute_bbox_by_separation"] = False
+        result["safe_for_reclassification"] = False
+
+    finally:
+        try:
+            doc.close()
+        except Exception:
+            pass
+
+    return result
+
+
 def detect_page_boxes(pdf_path):
     doc = fitz.open(pdf_path)
     boxes = []
@@ -1351,6 +1479,7 @@ def build_report(pdf_path):
     separations = detect_separations(str(input_path))
     process_colors = detect_process_colors_from_pdf(str(input_path))
     page_boxes = detect_page_boxes(str(input_path))
+    separation_usage_capability = detect_separation_usage_capability(str(input_path), separations=separations)
     live_fonts = detect_live_fonts(str(input_path))
     pdf_structure = analyze_pdf_structure(str(input_path))
 
@@ -1390,6 +1519,7 @@ def build_report(pdf_path):
         "total_alerts": len(context_findings),
         "separations": separations,
         "page_boxes": page_boxes,
+        "separation_usage_capability": separation_usage_capability,
         "pdf_structure": pdf_structure,
         "live_fonts": live_fonts,
         "operational_profile": business_assessment.get("operational_profile", {}),
