@@ -884,7 +884,13 @@ def check_spot_color_risk(separations):
     generic_spots = []
     for name in printable_spots:
         compact = _normalize_spot_name_local(name)
-        if compact in {"spot", "spot1", "spot2", "spot3", "tinta", "tinta1", "tinta2", "color", "color1"}:
+        is_generic = (
+            compact in {"spot", "spot1", "spot2", "spot3", "tinta", "tinta1", "tinta2", "color", "color1"}
+            or re.fullmatch(r"spot\d+", compact or "") is not None
+            or re.fullmatch(r"tinta\d+", compact or "") is not None
+            or re.fullmatch(r"color\d+", compact or "") is not None
+        )
+        if is_generic:
             generic_spots.append(name)
 
     white_spots = [
@@ -906,7 +912,32 @@ def check_spot_color_risk(separations):
         "separation_count_source": source,
     }
 
-    if printable_spot_count > 12:
+    if printable_spot_count == 0:
+        findings.append({
+            "page": 1,
+            "check": "SPOT_COLOR_RISK",
+            "severity": "LOW",
+            "detail": "Documento sin tintas spot detectadas.",
+            "value": "0 tinta(s) spot/blanco imprimible(s)",
+            "recommendation": "Sin acción requerida.",
+            **base_context,
+            "phase": "MVP"
+        })
+    elif printable_spot_count <= 8:
+        findings.append({
+            "page": 1,
+            "check": "SPOT_COLOR_RISK",
+            "severity": "LOW",
+            "detail": (
+                f"Se detectaron {printable_spot_count} tinta(s) spot/blanco imprimible(s). "
+                "La cantidad está dentro del rango normal del perfil operativo."
+            ),
+            "value": f"{printable_spot_count} tinta(s) spot/blanco imprimible(s); ejemplo: {example}",
+            "recommendation": "Sin acción requerida. Mantener validación normal de separaciones.",
+            **base_context,
+            "phase": "MVP"
+        })
+    elif printable_spot_count > 12:
         findings.append({
             "page": 1,
             "check": "SPOT_COLOR_RISK",
@@ -940,7 +971,7 @@ def check_spot_color_risk(separations):
             "page": 1,
             "check": "SPOT_COLOR_RISK",
             "severity": "MEDIUM",
-            "detail": "Se detectaron posibles tintas spot duplicadas o equivalentes.",
+            "detail": "Posible duplicidad de tinta spot por nombres inconsistentes.",
             "value": ", ".join(duplicates[:8]),
             "recommendation": "Normalizar nombres y validar si corresponden a la misma tinta.",
             **base_context,
@@ -952,7 +983,7 @@ def check_spot_color_risk(separations):
             "page": 1,
             "check": "SPOT_COLOR_RISK",
             "severity": "MEDIUM",
-            "detail": "Una o más separaciones spot podrían tener nombres genéricos o poco claros.",
+            "detail": "Spot con nombre genérico o sospechoso detectado.",
             "value": ", ".join(generic_spots[:8]),
             "recommendation": "Renombrar separaciones spot con nomenclatura clara antes de liberar.",
             **base_context,
