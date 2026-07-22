@@ -792,3 +792,18 @@ Se corrigen dos inconsistencias detectadas en validación visual:
     - No aplica a `SPOT_COLOR_RISK`, porque es un riesgo global/configuración.
 
 ---
+
+
+## Hotfix — Material as Technical Separation
+
+Se clasifica `Material` / `Materials` / `Materiales` como separación no imprimible/técnica.
+
+Criterio:
+
+- `Material` representa información de sustrato, referencia técnica o plano.
+- No debe contarse como tinta imprimible.
+- No debe sumar en `SPOT_COLOR_RISK`.
+- No debe sumar en `SEPARATION_COUNT_RISK`.
+- Debe aparecer en el bloque de separaciones no imprimibles/técnicas del dashboard.
+
+---
