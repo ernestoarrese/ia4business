@@ -866,3 +866,20 @@ Decisión importante:
 - La reclasificación por ubicación queda reservada para una etapa posterior, cuando pueda asociarse separación específica con geometría/bbox confiable.
 
 ---
+
+
+## Sprint 20C — Dashboard Separation Consistency
+
+Se ajusta `Color Separation Summary` para que el dashboard no reclasifique separaciones por nombre.
+
+Regla:
+
+- El backend clasifica usando `SeparationIntelligenceService`.
+- El dashboard usa `item.is_printable` como fuente oficial.
+- Fallback solo para reportes antiguos:
+    - `Process`, `Spot`, `Blanco`, `Barniz` → imprimibles.
+    - `Plano`, `Technical` → no imprimibles / técnicas.
+- Se evita que el frontend mantenga una lógica propia con nombres como `Sustrato`, `Material`, `Technical Drawing`, etc.
+- Objetivo: alinear visualmente `Color Separation Summary`, `SPOT_COLOR_RISK` y `SEPARATION_COUNT_RISK`.
+
+---

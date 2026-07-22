@@ -520,24 +520,24 @@ function renderSeparations(data){
   const operational=summary.operational_total ?? detected;
   const source=processSourceLabel(summary.process_count_source || "No informado");
 
-  const isNonPrintable=(item)=>{
-    const type=String(item.type||"").toLowerCase();
-    const name=String(item.name||"").toLowerCase();
-    return (
-      type.includes("plano") ||
-      type.includes("technical") ||
-      type.includes("técnico") ||
-      type.includes("tecnico") ||
-      name.includes("dimension") ||
-      name.includes("mechanical") ||
-      name.includes("technical drawing") ||
-      name.includes("sustrato") ||
-      name.includes("substrate")
-    );
+  const printableTypes=new Set(["Process","Spot","Blanco","Barniz"]);
+  const nonPrintableTypes=new Set(["Plano","Technical"]);
+
+  const isPrintableSeparation=(item)=>{
+    // Official source: backend classification from SeparationIntelligenceService.
+    if(typeof item.is_printable==="boolean")return item.is_printable;
+
+    // Fallback only for old reports without is_printable.
+    const type=String(item.type||"");
+    if(nonPrintableTypes.has(type))return false;
+    if(printableTypes.has(type))return true;
+
+    // Unknown legacy type: keep visible as printable/review instead of hiding it.
+    return true;
   };
 
-  const printable=items.filter(i=>!isNonPrintable(i));
-  const nonPrintable=items.filter(i=>isNonPrintable(i));
+  const printable=items.filter(i=>isPrintableSeparation(i));
+  const nonPrintable=items.filter(i=>!isPrintableSeparation(i));
 
   const header=`
     <div class="sep-compact-header">
@@ -554,7 +554,7 @@ function renderSeparations(data){
         ${group.length ? group.map(i=>`
           <div class="sep-mini-row">
             <div class="sep-mini-name" title="${esc(i.name)}">${esc(i.name)}</div>
-            <span class="sep-tag compact ${esc(i.type)}">${esc(i.type)}</span>
+            <span class="sep-tag compact ${esc(i.type)}" title="${esc(i.classification_source||"Backend")}">${esc(i.type)}</span>
           </div>
         `).join("") : `<div class="sep-mini-empty">${esc(emptyText)}</div>`}
       </div>
@@ -1161,6 +1161,9 @@ function compactTechnicalSeparationLabels(){
     "Mechanical Artwork",
     "Mechanical artwork",
     "Substrate",
+    "Material",
+    "Materials",
+    "Materiales",
     "Technical Drawing",
     "Technical drawing"
   ];
