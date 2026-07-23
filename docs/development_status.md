@@ -883,3 +883,64 @@ Regla:
 - Objetivo: alinear visualmente `Color Separation Summary`, `SPOT_COLOR_RISK` y `SEPARATION_COUNT_RISK`.
 
 ---
+
+
+## Sprint 22 — Risk Detail UX Compact Mode
+
+Se compacta el panel `Riesgo seleccionado` para reducir saturación visual.
+
+Nueva jerarquía:
+
+Visible por defecto:
+
+- Qué se encontró.
+- Por qué importa.
+- Qué hacer.
+
+Colapsado:
+
+- Resumen técnico.
+- Evidencia técnica.
+- Criterio, contexto y alcance.
+- Guías específicas del check.
+- Limitaciones de la versión actual.
+
+Ajustes realizados:
+
+- `renderRiskQualitySummary()` pasa a mostrarse dentro de un bloque colapsable.
+- `renderRiskVisualEvidence()` deja de mostrar mensaje vacío cuando el riesgo es global y no tiene bbox.
+- El bloque principal pasa de 4 tarjetas visibles a 3 tarjetas ejecutivas.
+- `Alcance v1` deja de competir visualmente con la acción recomendada y queda disponible en el detalle técnico/guías cuando aplica.
+
+Objetivo:
+
+- Gate0 no debe mostrar todo lo que sabe al mismo tiempo.
+- Primero debe ayudar a decidir.
+- El detalle técnico debe quedar disponible, pero no saturar la lectura principal.
+
+---
+
+
+## Sprint 22A — Risk Detail Executive Language
+
+Se mejora el lenguaje del panel `Riesgo seleccionado`.
+
+Ajustes:
+
+- Los 3 bloques ejecutivos usan lenguaje más cotidiano:
+    - Qué se encontró.
+    - Por qué importa.
+    - Qué hacer.
+- Se evita mostrar valores técnicos crudos como `has_overprint_fill=True`.
+- Para `OVERPRINT_RISK`, el dashboard diferencia:
+    - sobreimpresión genérica,
+    - sobreimpresión con contexto de blanco.
+- Los 3 bloques se muestran en una sola columna para mejorar lectura en el panel derecho.
+
+Criterio de producto:
+
+- Overprint debe sentirse como validación contextual.
+- Si hay blanco, `WARNING` es correcto, pero no significa defecto confirmado.
+- Gate0 no debe afirmar que el blanco está sobreimprimiendo hasta tener evidencia por objeto/separación.
+
+---

@@ -287,6 +287,55 @@
 .occurrence-counter{font-size:12px;font-weight:950;color:#344054}
 .occurrence-caption{font-size:11px;color:#667085;margin-top:2px;text-align:center}
 
+
+/* Sprint 22 — Risk Detail UX Compact Mode */
+.risk-detail-mode-note{
+  margin:8px 0 10px;
+  font-size:11px;
+  font-weight:800;
+  color:#64748b;
+}
+.detail-grid.enhanced.compact-main{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  margin-top:12px;
+}
+.detail-grid.enhanced.compact-main .info-box{
+  min-height:92px;
+}
+.compact-details.technical-summary{
+  margin-top:10px;
+}
+.compact-details.technical-summary summary{
+  color:#334155;
+}
+.risk-preview-empty{
+  display:none;
+}
+@media(max-width:980px){
+  .detail-grid.enhanced.compact-main{
+    grid-template-columns:1fr;
+  }
+}
+
+
+/* Sprint 22A — Executive language tuning */
+.detail-grid.enhanced.compact-main{
+  grid-template-columns:1fr!important;
+  margin-top:12px;
+}
+.detail-grid.enhanced.compact-main .info-box{
+  min-height:auto!important;
+  padding:12px 14px;
+}
+.detail-grid.enhanced.compact-main .info-box b{
+  font-size:11px;
+  letter-spacing:.05em;
+}
+.detail-grid.enhanced.compact-main .info-box div{
+  font-size:13px;
+  line-height:1.45;
+}
+
 </style>
 </head>
 <body>
@@ -806,11 +855,7 @@ function renderRiskVisualEvidence(r){
   const page=firstValue(r?.page, ev?.page, 1);
 
   if(!bbox){
-    return `
-      <div class="risk-preview-empty">
-        Riesgo global del archivo. No hay una zona visual única y confiable para marcar en el arte.
-      </div>
-    `;
+    return "";
   }
 
   const src=`/api/risk-preview?sid=${encodeURIComponent(SID||"")}&page=${encodeURIComponent(page||1)}&bbox=${encodeURIComponent(bbox)}`;
@@ -949,32 +994,37 @@ function recommendedActionLabel(r,insight){
 
 function renderRiskQualitySummary(r,insight){
   return `
-    <div class="risk-quality-grid">
-      <div class="risk-quality-card">
-        <b>Tipo de riesgo</b>
-        <div>${esc(riskTypeLabel(r))}</div>
+    <details class="compact-details technical-summary">
+      <summary>Resumen técnico</summary>
+      <div class="compact-details-body">
+        <div class="risk-quality-grid compact">
+          <div class="risk-quality-card">
+            <b>Tipo de riesgo</b>
+            <div>${esc(riskTypeLabel(r))}</div>
+          </div>
+          <div class="risk-quality-card">
+            <b>Confianza</b>
+            <div>${esc(riskConfidenceLabel(r,insight))}</div>
+          </div>
+          <div class="risk-quality-card">
+            <b>Alcance</b>
+            <div>${esc(riskScopeLabel(r))}</div>
+          </div>
+          <div class="risk-quality-card">
+            <b>Área imprimible</b>
+            <div>${esc(printableAreaLabel(r))}</div>
+          </div>
+          <div class="risk-quality-card">
+            <b>Umbral / criterio</b>
+            <div>${esc(thresholdLabel(r,insight))}</div>
+          </div>
+          <div class="risk-quality-card">
+            <b>Tipo de corrección</b>
+            <div>${esc(fixTypeLabel(r))}</div>
+          </div>
+        </div>
       </div>
-      <div class="risk-quality-card">
-        <b>Confianza</b>
-        <div>${esc(riskConfidenceLabel(r,insight))}</div>
-      </div>
-      <div class="risk-quality-card">
-        <b>Alcance</b>
-        <div>${esc(riskScopeLabel(r))}</div>
-      </div>
-      <div class="risk-quality-card">
-        <b>Área imprimible</b>
-        <div>${esc(printableAreaLabel(r))}</div>
-      </div>
-      <div class="risk-quality-card">
-        <b>Umbral / criterio</b>
-        <div>${esc(thresholdLabel(r,insight))}</div>
-      </div>
-      <div class="risk-quality-card">
-        <b>Tipo de corrección</b>
-        <div>${esc(fixTypeLabel(r))}</div>
-      </div>
-    </div>
+    </details>
   `;
 }
 
@@ -985,7 +1035,7 @@ function renderEvidencePanel(r,insight){
 
   return `
     <details class="compact-details">
-      <summary>Evidencia técnica</summary>
+      <summary>Ver evidencia técnica</summary>
       <div class="compact-details-body">
         <div class="evidence-grid">
           ${items.map(item=>`
@@ -1068,7 +1118,7 @@ function renderGuidancePanel(r){
 
   return `
     <details class="compact-details">
-      <summary>Guías específicas del check</summary>
+      <summary>Ver guías específicas del check</summary>
       <div class="compact-details-body">
         <div class="guidance-list">
           ${items.map(item=>`
@@ -1125,7 +1175,7 @@ function riskOperationalContext(input){
 function renderIntelligenceDetails(r){
   return `
     <details class="compact-details">
-      <summary>Criterio, contexto y alcance</summary>
+      <summary>Ver criterio, contexto y alcance</summary>
       <div class="compact-details-body">
         <div class="risk-intel-grid compact">
           <div class="risk-intel-card">
@@ -1138,7 +1188,7 @@ function renderIntelligenceDetails(r){
           </div>
           <div class="risk-intel-card">
             <strong>Impacto posible</strong>
-            <div>${esc(riskPossibleImpact(r))}</div>
+            <div>${esc(impactText)}</div>
           </div>
           <div class="risk-intel-card">
             <strong>Limitación actual</strong>
@@ -1207,74 +1257,285 @@ function updateThresholdCardAfterRender(r,insight){
     .replace(/Umbral no informado por Gate0/g, value);
 }
 
-function selectRisk(i,occurrenceIndex=0){
-  document.querySelectorAll(".risk-item").forEach(x=>x.classList.remove("active"));
-  const el=$("risk-"+i); if(el)el.classList.add("active");
 
-  currentSelectedRiskIndex=i;
-  const baseRisk=currentRisks[i]; if(!baseRisk)return;
-  currentOccurrenceIndex=clampOccurrenceIndex(baseRisk,occurrenceIndex);
-
-  const r=riskDataForActiveOccurrence(baseRisk);
-  const ev=r.risk_evidence||{};
-  const insight=r.expert_insight||{};
-  const evidenceHtml=renderEvidencePanel(r,insight);
-  const actionText=recommendedActionLabel(r,insight);
-
-  $("riskDetail").innerHTML=`
-    <div class="risk-top">
-      <h2>${esc(r.title||displayName(r.check))}</h2>
-      <span class="badge ${esc(sev(r))}">${esc(sev(r))}</span>
-    </div>
-
-    ${renderOccurrenceNav(baseRisk)}
-
-    ${renderRiskQualitySummary(r,insight)}
-
-    ${renderRiskVisualEvidence(r)}
-
-    <div class="detail-comment">${esc(r.expert_comment||insight.brief_comment||r.risk_reason||"Revisar hallazgo.")}</div>
-
-    <div class="detail-grid enhanced">
-      <div class="info-box">
-        <b>Detectado</b>
-        <div>${esc(ev.detected_value||insight.evidence?.detected_value||r.value||r.detail||"-")}</div>
-      </div>
-
-      <div class="info-box">
-        <b>Impacto en decisión</b>
-        <div>${esc(riskPossibleImpact(r))}</div>
-      </div>
-
-      <div class="info-box">
-        <b>Acción recomendada</b>
-        <div>${esc(actionText)}</div>
-      </div>
-
-      <div class="info-box">
-        <b>Alcance v1</b>
-        <div>${esc(r.do_not_claim||"Gate0 orienta la revisión; la liberación final sigue siendo criterio de preprensa.")}</div>
-      </div>
-    </div>
-
-    ${evidenceHtml}
-
-    ${renderIntelligenceDetails(r)}
-
-    ${renderGuidancePanel(r)}
-
-    <div class="action-row">
-      <button onclick="setFeedbackScore(1)">Útil</button>
-      <button onclick="setFeedbackScore(-1)">No útil</button>
-      <div class="info-box">
-        <b>Feedback</b>
-        <div>Marca si este riesgo ayudó a decidir o si requiere ajuste de criterio.</div>
-      </div>
-    </div>
-  `;
-
-  updateThresholdCardAfterRender(r,insight);
+function hasWhiteContext(r){
+  return Boolean(
+    r?.white_ink_present ||
+    r?.white_detected ||
+    r?.has_white_ink ||
+    r?.white_ink_detected ||
+    String(r?.overprint_context||"").includes("WHITE")
+  );
 }
+
+function executiveDetectedLabel(r,insight){
+  const check=String(r?.check||"").toUpperCase();
+
+  if(check==="OVERPRINT_RISK"){
+    if(hasWhiteContext(r)){
+      return "Se detectaron señales de sobreimpresión y el archivo contiene blanco.";
+    }
+    return "Se detectaron señales de sobreimpresión en el PDF.";
+  }
+
+  if(check==="SMALL_TEXT_RISK"){
+    const size=firstValue(r?.font_size_pt, r?.text_size_pt, insight?.font_size_pt);
+    const text=firstValue(r?.sample_text, insight?.sample_text);
+    if(size && text)return `Texto pequeño de ${size} pt detectado: “${text}”.`;
+    if(size)return `Texto pequeño de ${size} pt detectado.`;
+    return "Se detectó texto por debajo del tamaño recomendado.";
+  }
+
+  if(check==="LOW_IMAGE_RESOLUTION"){
+    const dpi=firstValue(r?.effective_dpi, insight?.effective_dpi);
+    if(dpi)return `Imagen con resolución efectiva aproximada de ${dpi} dpi.`;
+    return "Se detectó una imagen con resolución efectiva baja.";
+  }
+
+  if(check==="HIGH_TAC_RISK"){
+    const tac=firstValue(r?.detected_tac, r?.tac, insight?.detected_tac);
+    if(tac)return `Zona con cobertura total de tinta aproximada de ${tac}%.`;
+    return "Se detectó cobertura total de tinta alta.";
+  }
+
+  if(check==="SPOT_COLOR_RISK"){
+    return firstValue(r?.detail, "Se detectó una condición a revisar en tintas spot o separaciones especiales.");
+  }
+
+  if(check==="SEPARATION_COUNT_RISK"){
+    const count=firstValue(r?.printable_separation_count, r?.separation_count);
+    if(count)return `El archivo tiene ${count} separaciones imprimibles estimadas.`;
+    return "Se detectó una cantidad de separaciones que requiere revisión.";
+  }
+
+  return firstValue(
+    insight?.evidence?.detected_value,
+    r?.value,
+    r?.detail,
+    "Se detectó una condición que requiere revisión."
+  );
+}
+
+function executiveImpactLabel(r,insight){
+  const check=String(r?.check||"").toUpperCase();
+
+  if(check==="OVERPRINT_RISK"){
+    if(hasWhiteContext(r)){
+      return "Si el blanco sobreimprime por error, puede no reservar correctamente o alterar la base de impresión.";
+    }
+    return "Puede ser normal, como trapping o negro sobreimpreso; solo es riesgoso si afecta elementos críticos.";
+  }
+
+  return riskPossibleImpact(r);
+}
+
+function executiveActionLabel(r,insight){
+  const check=String(r?.check||"").toUpperCase();
+
+  if(check==="OVERPRINT_RISK"){
+    if(hasWhiteContext(r)){
+      return "Abrir con Overprint Preview y validar que el blanco reserve correctamente.";
+    }
+    return "No bloquear. Revisar solo si afecta textos, códigos, blancos o elementos visuales sensibles.";
+  }
+
+  return recommendedActionLabel(r,insight);
+}
+
+function executiveCommentLabel(r,insight){
+  const check=String(r?.check||"").toUpperCase();
+
+  if(check==="OVERPRINT_RISK"){
+    if(hasWhiteContext(r)){
+      return "Validación requerida: hay señales de sobreimpresión y blanco en el archivo. Gate0 no confirma que el blanco esté sobreimprimiendo.";
+    }
+    return "Validación contextual: se detectaron señales de sobreimpresión, pero no se confirma un defecto.";
+  }
+
+  return firstValue(
+    r?.expert_comment,
+    insight?.brief_comment,
+    r?.risk_reason,
+    "Revisar hallazgo."
+  );
+}
+
+
+function selectRisk(i,occurrenceIndex=0){
+  try{
+    document.querySelectorAll(".risk-item").forEach(x=>x.classList.remove("active"));
+    const el=$("risk-"+i);
+    if(el)el.classList.add("active");
+
+    currentSelectedRiskIndex=i;
+    const baseRisk=currentRisks[i];
+    const root=$("riskDetail");
+
+    if(!root){
+      console.error("riskDetail root not found");
+      return;
+    }
+
+    if(!baseRisk){
+      root.innerHTML='<div class="empty">No se encontró información del riesgo seleccionado.</div>';
+      return;
+    }
+
+    currentOccurrenceIndex=clampOccurrenceIndex(baseRisk,occurrenceIndex);
+
+    const r=riskDataForActiveOccurrence(baseRisk)||baseRisk;
+    const ev=r.risk_evidence||{};
+    const insight=r.expert_insight||{};
+    const check=String(r.check||"").toUpperCase();
+
+    const whiteContext=Boolean(
+      r.white_ink_present ||
+      r.white_detected ||
+      r.has_white_ink ||
+      r.white_ink_detected ||
+      String(r.overprint_context||"").includes("WHITE")
+    );
+
+    let detectedText=firstValue(
+      ev.detected_value,
+      insight?.evidence?.detected_value,
+      r.value,
+      r.detail,
+      "Se detectó una condición que requiere revisión."
+    );
+
+    let impactText=riskPossibleImpact(r);
+    let actionText=recommendedActionLabel(r,insight);
+    let commentText=firstValue(
+      r.expert_comment,
+      insight.brief_comment,
+      r.risk_reason,
+      "Revisar hallazgo."
+    );
+
+    if(check==="OVERPRINT_RISK"){
+      if(whiteContext){
+        commentText="Validación requerida: hay señales de sobreimpresión y blanco en el archivo. Gate0 no confirma que el blanco esté sobreimprimiendo.";
+        detectedText="Se detectaron señales de sobreimpresión y el archivo contiene blanco.";
+        impactText="Si el blanco sobreimprime por error, puede no reservar correctamente o alterar la base de impresión.";
+        actionText="Abrir con Overprint Preview y validar que el blanco reserve correctamente.";
+      }else{
+        commentText="Validación contextual: se detectaron señales de sobreimpresión, pero no se confirma un defecto.";
+        detectedText="Se detectaron señales de sobreimpresión en el PDF.";
+        impactText="Puede ser normal, como trapping o negro sobreimpreso; solo es riesgoso si afecta elementos críticos.";
+        actionText="No bloquear. Revisar solo si afecta textos, códigos, blancos o elementos visuales sensibles.";
+      }
+    }
+
+    if(check==="SMALL_TEXT_RISK"){
+      const size=firstValue(r.font_size_pt,r.text_size_pt,insight.font_size_pt);
+      const sample=firstValue(r.sample_text,insight.sample_text);
+      if(size && sample){
+        detectedText=`Texto pequeño de ${size} pt detectado: “${sample}”.`;
+      }else if(size){
+        detectedText=`Texto pequeño de ${size} pt detectado.`;
+      }else{
+        detectedText="Se detectó texto por debajo del tamaño recomendado.";
+      }
+    }
+
+    if(check==="LOW_IMAGE_RESOLUTION"){
+      const dpi=firstValue(r.effective_dpi,insight.effective_dpi);
+      detectedText=dpi
+        ? `Imagen con resolución efectiva aproximada de ${dpi} dpi.`
+        : "Se detectó una imagen con resolución efectiva baja.";
+    }
+
+    if(check==="HIGH_TAC_RISK"){
+      const tac=firstValue(r.detected_tac,r.tac,insight.detected_tac);
+      detectedText=tac
+        ? `Zona con cobertura total de tinta aproximada de ${tac}%.`
+        : "Se detectó cobertura total de tinta alta.";
+    }
+
+    if(check==="SEPARATION_COUNT_RISK"){
+      const count=firstValue(r.printable_separation_count,r.separation_count);
+      detectedText=count
+        ? `El archivo tiene ${count} separaciones imprimibles estimadas.`
+        : "Se detectó una cantidad de separaciones que requiere revisión.";
+    }
+
+    const safeRender=(label,fn)=>{
+      try{
+        const value=fn();
+        return value||"";
+      }catch(err){
+        console.warn(`Render parcial falló: ${label}`,err);
+        return "";
+      }
+    };
+
+    const occurrenceHtml=safeRender("occurrence",()=>renderOccurrenceNav(baseRisk));
+    const qualityHtml=safeRender("quality",()=>renderRiskQualitySummary(r,insight));
+    const visualHtml=safeRender("visual",()=>renderRiskVisualEvidence(r));
+    const evidenceHtml=safeRender("evidence",()=>renderEvidencePanel(r,insight));
+    const intelHtml=safeRender("intelligence",()=>renderIntelligenceDetails(r));
+    const guidanceHtml=safeRender("guidance",()=>renderGuidancePanel(r));
+
+    root.innerHTML=`
+      <div class="risk-top">
+        <h2>${esc(r.title||displayName(r.check))}</h2>
+        <span class="badge ${esc(sev(r))}">${esc(sev(r))}</span>
+      </div>
+
+      ${occurrenceHtml}
+
+      <div class="detail-comment">${esc(commentText)}</div>
+
+      <div class="risk-detail-mode-note">Resumen ejecutivo del hallazgo</div>
+
+      <div class="detail-grid enhanced compact-main">
+        <div class="info-box">
+          <b>Qué se encontró</b>
+          <div>${esc(detectedText)}</div>
+        </div>
+
+        <div class="info-box">
+          <b>Por qué importa</b>
+          <div>${esc(impactText)}</div>
+        </div>
+
+        <div class="info-box">
+          <b>Qué hacer</b>
+          <div>${esc(actionText)}</div>
+        </div>
+      </div>
+
+      ${visualHtml}
+
+      ${qualityHtml}
+
+      ${evidenceHtml}
+
+      ${intelHtml}
+
+      ${guidanceHtml}
+    `;
+
+    if(typeof updateThresholdCardAfterRender==="function"){
+      updateThresholdCardAfterRender(r,insight);
+    }
+
+  }catch(err){
+    console.error("selectRisk failed",err);
+    const root=$("riskDetail");
+    if(root){
+      root.innerHTML=`
+        <div class="empty">
+          <b>No se pudo mostrar el riesgo seleccionado.</b><br/>
+          Revisa la consola del navegador para ver el error JavaScript.
+        </div>
+      `;
+    }
+  }
+}
+
+
 
 function setFeedbackScore(score){
   feedbackScore=String(score);
