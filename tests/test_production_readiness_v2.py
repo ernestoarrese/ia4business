@@ -88,7 +88,7 @@ def test_production_readiness_v2_uses_supervisor_language_for_white_overprint():
         {},
     )
 
-    assert result["version"] in {"v2_language_refined", "v2_priority_refined", "v2_priority_deduped"}
+    assert result["version"] in {"v2_language_refined", "v2_priority_refined", "v2_priority_deduped", "v2_printable_area_priority"}
     assert result["answer"] == "Requiere revisión antes de liberar."
     assert result["primary_risk"] == "Validar sobreimpresión con blanco"
     assert "no se confirma" not in result["supervisor_summary"].lower()
@@ -134,7 +134,7 @@ def test_production_readiness_v2_prioritizes_overprint_before_small_text_when_bo
         {},
     )
 
-    assert result["version"] in {"v2_priority_refined", "v2_priority_deduped"}
+    assert result["version"] in {"v2_priority_refined", "v2_priority_deduped", "v2_printable_area_priority"}
     assert result["status"] == "REVIEW_REQUIRED"
     assert result["primary_risk"] == "Validar sobreimpresión"
     assert result["what_to_review_first"][0]["title"] == "Validar sobreimpresión"
@@ -263,9 +263,81 @@ def test_production_readiness_v2_deduplicates_repeated_small_text_occurrences():
         {},
     )
 
-    assert result["version"] == "v2_priority_deduped"
+    assert result["version"] in {"v2_priority_deduped", "v2_printable_area_priority"}
     assert result["primary_risk"] == "Validar sobreimpresión"
     assert len(result["what_to_review_first"]) == 2
     assert result["what_to_review_first"][0]["title"] == "Validar sobreimpresión"
     assert result["what_to_review_first"][1]["title"] == "Revisar texto pequeño"
     assert result["what_to_review_first"][1]["occurrence_count"] == 2
+
+
+
+def test_production_readiness_v2_treats_outside_printable_area_warning_as_contextual():
+    result = build_production_readiness_v2(
+        {"readiness_status": "REVIEW_REQUIRED", "readiness_decision": "HOLD", "readiness_score": 90},
+        [{
+            "check": "SMALL_TEXT_RISK",
+            "severity": "WARNING",
+            "business_severity": "WARNING",
+            "score_weight": 8,
+            "is_blocking": False,
+            "risk_reason": "Texto pequeño.",
+            "printable_area_source": "TRIMBOX_CONFIRMED",
+            "printable_area_confidence": "CONFIRMED",
+            "is_inside_printable_area": False,
+            "printable_area_overlap_percent": 0,
+        }],
+        {},
+    )
+
+    assert result["version"] == "v2_printable_area_priority"
+    assert result["status"] == "READY_WITH_NOTES"
+    assert result["effective_risk_count"] == 0
+    assert result["contextual_note_count"] == 1
+    assert result["what_to_review_first"][0]["printable_area_status"] == "OUTSIDE_CONFIRMED_PRINTABLE_AREA"
+
+
+def test_production_readiness_v2_keeps_inside_printable_area_warning_effective():
+    result = build_production_readiness_v2(
+        {"readiness_status": "REVIEW_REQUIRED", "readiness_decision": "HOLD", "readiness_score": 82},
+        [{
+            "check": "SMALL_TEXT_RISK",
+            "severity": "WARNING",
+            "business_severity": "WARNING",
+            "score_weight": 8,
+            "is_blocking": False,
+            "risk_reason": "Texto pequeño.",
+            "printable_area_source": "TRIMBOX_CONFIRMED",
+            "printable_area_confidence": "CONFIRMED",
+            "is_inside_printable_area": True,
+            "printable_area_overlap_percent": 100,
+        }],
+        {},
+    )
+
+    assert result["status"] == "REVIEW_REQUIRED"
+    assert result["effective_risk_count"] == 1
+    assert result["what_to_review_first"][0]["printable_area_status"] == "INSIDE_CONFIRMED_PRINTABLE_AREA"
+
+
+def test_production_readiness_v2_does_not_downgrade_when_printable_area_is_unconfirmed():
+    result = build_production_readiness_v2(
+        {"readiness_status": "REVIEW_REQUIRED", "readiness_decision": "HOLD", "readiness_score": 82},
+        [{
+            "check": "LOW_IMAGE_RESOLUTION",
+            "severity": "WARNING",
+            "business_severity": "WARNING",
+            "score_weight": 8,
+            "is_blocking": False,
+            "risk_reason": "Imagen baja.",
+            "printable_area_source": "UNCONFIRMED_FULL_PAGE",
+            "printable_area_confidence": "LOW",
+            "is_inside_printable_area": False,
+            "printable_area_overlap_percent": 0,
+        }],
+        {},
+    )
+
+    assert result["status"] == "REVIEW_REQUIRED"
+    assert result["effective_risk_count"] == 1
+    assert result["what_to_review_first"][0]["printable_area_status"] == "PRINTABLE_AREA_NOT_CONFIRMED"

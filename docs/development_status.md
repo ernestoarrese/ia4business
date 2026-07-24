@@ -1210,3 +1210,66 @@ Corrección:
 - Permite que `riskVisualZones()` filtre zonas renderizables sin romper `selectRisk()`.
 
 ---
+
+
+## Sprint 25B — Printable Area Priority Filter
+
+Se agrega filtro de prioridad por área imprimible dentro de `production_readiness_v2`.
+
+Objetivo:
+
+- Reducir falsos positivos operativos.
+- Bajar prioridad cuando un hallazgo visual está fuera del área imprimible confirmada.
+- Mantener prioridad cuando el hallazgo está dentro de TrimBox/área imprimible.
+- No bajar prioridad cuando el área imprimible no está confirmada.
+
+Aplica inicialmente a:
+
+- `RGB_OBJECT`
+- `LOW_IMAGE_RESOLUTION`
+- `SMALL_TEXT_RISK`
+- `HIGH_TAC_RISK`
+- `BARCODE_RISK`
+
+Reglas:
+
+- Fuera de área imprimible confirmada con overlap 0–1% → observación contextual.
+- Dentro de área imprimible confirmada → riesgo efectivo.
+- Área no confirmada → no se degrada automáticamente.
+
+Campos agregados en `production_readiness_v2`:
+
+- `primary_printable_area_status`
+- `printable_area_status` por item de `what_to_review_first`
+
+Estados posibles:
+
+- `OUTSIDE_CONFIRMED_PRINTABLE_AREA`
+- `INSIDE_CONFIRMED_PRINTABLE_AREA`
+- `PARTIAL_OR_UNCLEAR_PRINTABLE_AREA`
+- `PRINTABLE_AREA_NOT_CONFIRMED`
+
+---
+
+
+## Sprint 25B.1 — Unconfirmed Printable Area Fix
+
+Se corrige la validación de área imprimible confirmada.
+
+Problema:
+
+- `UNCONFIRMED_FULL_PAGE` estaba siendo interpretado como confirmado porque contiene la palabra `CONFIRMED`.
+- Esto hacía que hallazgos con área imprimible no confirmada pudieran degradarse incorrectamente a observación contextual.
+
+Corrección:
+
+- Se evita usar búsqueda parcial de texto.
+- `UNCONFIRMED_FULL_PAGE` ahora se trata correctamente como no confirmado.
+- Solo fuentes explícitas como `TRIMBOX_CONFIRMED`, `ARTBOX_CONFIRMED`, `CROPBOX_CONFIRMED` o confianza `CONFIRMED/HIGH` se consideran confirmadas.
+
+Resultado esperado:
+
+- Si el área no está confirmada, Gate0 no baja automáticamente la prioridad.
+- Si el hallazgo está fuera de TrimBox confirmado, sí puede pasar a observación contextual.
+
+---
