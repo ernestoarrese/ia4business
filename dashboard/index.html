@@ -473,6 +473,74 @@
   font-size:12px;
 }
 
+
+/* Sprint 24A.1 — visible drilldown and cleaner PR header */
+.production-readiness-v2 .kicker{
+  display:none;
+}
+.production-readiness-v2 .pr2-question{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:#667085;
+  font-weight:900;
+  margin-bottom:4px;
+}
+.production-readiness-v2 .pr2-review-link{
+  appearance:none;
+  border:0;
+  background:transparent;
+  padding:0;
+  margin:0;
+  font:inherit;
+  font-weight:850;
+  color:#111827;
+  cursor:pointer;
+  text-align:left;
+}
+.production-readiness-v2 .pr2-review-link:hover{
+  text-decoration:underline;
+}
+.production-readiness-v2 .drilldown-hint{
+  display:block;
+  font-size:11px;
+  color:#2563eb;
+  font-weight:800;
+  margin-top:2px;
+}
+.production-readiness-v2 .drilldown-hint:after{
+  content:" →";
+}
+.production-readiness-v2 .pr2-review li{
+  padding:5px 0;
+}
+
+
+/* Sprint 24A.2 — Drilldown click fix */
+.production-readiness-v2 .drilldown-hint{
+  display:none!important;
+}
+.production-readiness-v2 .pr2-review-link{
+  appearance:none;
+  border:0;
+  background:transparent;
+  padding:0;
+  margin:0;
+  font:inherit;
+  font-weight:900;
+  color:#111827;
+  cursor:pointer;
+  text-align:left;
+}
+.production-readiness-v2 .pr2-review-link:hover{
+  text-decoration:underline;
+}
+.production-readiness-v2 .pr2-review-link:focus{
+  outline:2px solid #93c5fd;
+  outline-offset:2px;
+  border-radius:4px;
+}
+
 </style>
 </head>
 <body>
@@ -703,6 +771,144 @@ function productionStatusLabel(status){
   return map[status]||status||"No informado";
 }
 
+
+function normalizeCheckForDrilldown(value){
+  return String(value||"").trim().toUpperCase();
+}
+
+function findRiskIndexByCheck(check){
+  const target=normalizeCheckForDrilldown(check);
+  if(!target || !Array.isArray(currentRisks))return -1;
+
+  return currentRisks.findIndex(r=>{
+    const direct=normalizeCheckForDrilldown(r?.check);
+    if(direct===target)return true;
+
+    const code=normalizeCheckForDrilldown(r?.check_code||r?.check_id||r?.risk_code);
+    if(code===target)return true;
+
+    const occurrences=Array.isArray(r?.occurrences)?r.occurrences:[];
+    return occurrences.some(o=>normalizeCheckForDrilldown(o?.check)===target);
+  });
+}
+
+function selectProductionReadinessRisk(check){
+  const idx=findRiskIndexByCheck(check);
+
+  if(idx<0){
+    console.warn("No se encontró Top Risk para Production Readiness item:",check);
+    return;
+  }
+
+  selectRisk(idx,0);
+
+  const riskEl=$("risk-"+idx);
+  if(riskEl){
+    riskEl.scrollIntoView({behavior:"smooth",block:"center"});
+  }
+
+  setTimeout(()=>{
+    const detail=$("riskDetail");
+    if(detail){
+      detail.scrollIntoView({behavior:"smooth",block:"start"});
+    }
+  },180);
+}
+
+function bindProductionReadinessDrilldown(root){
+  if(!root)return;
+
+  root.querySelectorAll("[data-pr2-check]").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      selectProductionReadinessRisk(btn.getAttribute("data-pr2-check"));
+    });
+  });
+}
+
+
+
+function inferCheckFromReadinessTitle(title){
+  const t=String(title||"").toLowerCase();
+
+  if(t.includes("sobreimpresión") || t.includes("sobreimpresion") || t.includes("overprint")){
+    return "OVERPRINT_RISK";
+  }
+
+  if(t.includes("texto pequeño") || t.includes("texto pequeno") || t.includes("legibilidad")){
+    return "SMALL_TEXT_RISK";
+  }
+
+  if(t.includes("resolución") || t.includes("resolucion") || t.includes("imagen")){
+    return "LOW_IMAGE_RESOLUTION";
+  }
+
+  if(t.includes("tac")){
+    return "HIGH_TAC_RISK";
+  }
+
+  if(t.includes("fuente")){
+    return "FONT_NOT_EMBEDDED";
+  }
+
+  if(t.includes("spot") || t.includes("separaciones")){
+    return "SPOT_COLOR_RISK";
+  }
+
+  return "";
+}
+
+function selectProductionReadinessRisk(check,title){
+  const explicitCheck=normalizeCheckForDrilldown(check);
+  const inferredCheck=normalizeCheckForDrilldown(inferCheckFromReadinessTitle(title));
+  const target=explicitCheck||inferredCheck;
+
+  let idx=-1;
+
+  if(target){
+    idx=findRiskIndexByCheck(target);
+  }
+
+  if(idx<0 && inferredCheck){
+    idx=findRiskIndexByCheck(inferredCheck);
+  }
+
+  if(idx<0 && title && Array.isArray(currentRisks)){
+    const wanted=String(title||"").toLowerCase();
+    idx=currentRisks.findIndex(r=>{
+      const name=String(r?.title||displayName(r?.check)||"").toLowerCase();
+      return name.includes(wanted) || wanted.includes(name);
+    });
+  }
+
+  if(idx<0){
+    console.warn("No se encontró Top Risk para Production Readiness item:",{check,title,target});
+    return;
+  }
+
+  selectRisk(idx,0);
+
+  setTimeout(()=>{
+    const detail=$("riskDetail");
+    if(detail){
+      detail.scrollIntoView({behavior:"smooth",block:"start"});
+    }
+  },80);
+}
+
+function bindProductionReadinessDrilldown(root){
+  if(!root)return;
+
+  root.querySelectorAll("[data-pr2-check],[data-pr2-title]").forEach(btn=>{
+    btn.onclick=()=>{
+      selectProductionReadinessRisk(
+        btn.getAttribute("data-pr2-check"),
+        btn.getAttribute("data-pr2-title")
+      );
+    };
+  });
+}
+
+
 function renderProductionReadinessV2(data){
   const box=$("productionReadinessV2");
   const legacy=$("legacyHeroSummary");
@@ -724,7 +930,6 @@ function renderProductionReadinessV2(data){
   box.innerHTML=`
     <div class="pr2-top">
       <div>
-        <div class="kicker">Production Readiness</div>
         <div class="pr2-question">${esc(pr.question||"¿Está este archivo listo para producir?")}</div>
         <div class="pr2-answer">${esc(pr.answer||productionStatusLabel(pr.status))}</div>
         <div class="pr2-summary">${esc(pr.supervisor_summary||pr.main_reason||pr.decision||"Revisión requerida según criterios Gate0.")}</div>
@@ -754,11 +959,19 @@ function renderProductionReadinessV2(data){
         <ol>
           ${review.slice(0,5).map(item=>{
             const title=item.title||item.check||"Riesgo técnico";
+            const check=item.check||"";
             const count=Number(item.occurrence_count||1);
             const suffix=count>1?` (${count} ocurrencias)`:"";
+
             return `
               <li>
-                ${esc(title)}${suffix?`<span class="occurrence-count">${esc(suffix)}</span>`:""}
+                <button
+                  type="button"
+                  class="pr2-review-link"
+                  data-pr2-check="${esc(check)}"
+                  data-pr2-title="${esc(title)}"
+                  onclick="selectProductionReadinessRisk('${esc(check)}','${esc(title)}')"
+                >${esc(title)}</button>${suffix?`<span class="occurrence-count">${esc(suffix)}</span>`:""}
                 ${item.reason?`<span>${esc(item.reason)}</span>`:""}
               </li>
             `;
@@ -1803,6 +2016,127 @@ async function loadReport(){
 
 if($("pdfFrame")) $("pdfFrame").src=`/api/pdf?sid=${encodeURIComponent(SID||"")}`;
 loadReport();
+
+
+// Sprint 24A.3 — robust Production Readiness drilldown override
+function pr2Normalize(value){
+  return String(value||"").trim().toUpperCase();
+}
+
+function pr2InferCheckFromTitle(title){
+  const t=String(title||"").toLowerCase();
+
+  if(t.includes("sobreimpresión") || t.includes("sobreimpresion") || t.includes("overprint")){
+    return "OVERPRINT_RISK";
+  }
+
+  if(t.includes("texto pequeño") || t.includes("texto pequeno") || t.includes("legibilidad")){
+    return "SMALL_TEXT_RISK";
+  }
+
+  if(t.includes("resolución") || t.includes("resolucion") || t.includes("imagen")){
+    return "LOW_IMAGE_RESOLUTION";
+  }
+
+  if(t.includes("tac")){
+    return "HIGH_TAC_RISK";
+  }
+
+  if(t.includes("fuente")){
+    return "FONT_NOT_EMBEDDED";
+  }
+
+  if(t.includes("separación") || t.includes("separacion") || t.includes("spot")){
+    return "SPOT_COLOR_RISK";
+  }
+
+  return "";
+}
+
+function pr2FindRiskIndex(check,title){
+  const explicitCheck=pr2Normalize(check);
+  const inferredCheck=pr2Normalize(pr2InferCheckFromTitle(title));
+  const targets=[explicitCheck,inferredCheck].filter(Boolean);
+
+  if(!Array.isArray(currentRisks)){
+    console.warn("currentRisks no disponible para drilldown.");
+    return -1;
+  }
+
+  for(const target of targets){
+    const idx=currentRisks.findIndex(r=>{
+      const direct=pr2Normalize(r?.check);
+      if(direct===target)return true;
+
+      const code=pr2Normalize(r?.check_code||r?.check_id||r?.risk_code);
+      if(code===target)return true;
+
+      const occurrences=Array.isArray(r?.occurrences)?r.occurrences:[];
+      return occurrences.some(o=>pr2Normalize(o?.check)===target);
+    });
+
+    if(idx>=0)return idx;
+  }
+
+  const wanted=String(title||"").toLowerCase();
+
+  if(wanted){
+    const idx=currentRisks.findIndex(r=>{
+      const riskTitle=String(r?.title||"").toLowerCase();
+      const display=String(displayName(r?.check)||"").toLowerCase();
+
+      return (
+        riskTitle.includes(wanted) ||
+        wanted.includes(riskTitle) ||
+        display.includes(wanted) ||
+        wanted.includes(display)
+      );
+    });
+
+    if(idx>=0)return idx;
+  }
+
+  return -1;
+}
+
+function selectProductionReadinessRisk(check,title){
+  const idx=pr2FindRiskIndex(check,title);
+
+  if(idx<0){
+    console.warn("No se encontró Top Risk para Production Readiness item:",{check,title,currentRisks});
+    return false;
+  }
+
+  selectRisk(idx,0);
+
+  const riskCard=$("risk-"+idx);
+  if(riskCard){
+    riskCard.classList.add("active");
+  }
+
+  setTimeout(()=>{
+    const detail=$("riskDetail");
+    if(detail){
+      detail.scrollIntoView({behavior:"smooth",block:"start"});
+    }
+  },120);
+
+  return false;
+}
+
+document.addEventListener("click",function(ev){
+  const btn=ev.target.closest(".pr2-review-link");
+  if(!btn)return;
+
+  ev.preventDefault();
+  ev.stopPropagation();
+
+  selectProductionReadinessRisk(
+    btn.getAttribute("data-pr2-check"),
+    btn.getAttribute("data-pr2-title") || btn.textContent
+  );
+});
+
 </script>
 </body>
 </html>

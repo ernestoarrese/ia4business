@@ -1094,3 +1094,62 @@ Resultado esperado:
 - Riesgo seleccionado queda más limpio: título, severidad, navegación de ocurrencias, tarjetas ejecutivas y evidencia visual.
 
 ---
+
+
+## Sprint 24A.1 — Visible Production Readiness Drilldown
+
+Se ajusta el bloque `Production Readiness`:
+
+- Se oculta el título redundante `Production Readiness`.
+- Se mantiene la pregunta ejecutiva `¿Está este archivo listo para producir?`.
+- Cada item de `Qué revisar primero` muestra `Ver evidencia y detalle`.
+- Los items son clickeables y seleccionan automáticamente el Top Risk correspondiente.
+- Se hace scroll hacia el panel de riesgo seleccionado.
+
+Objetivo:
+
+- Hacer evidente el acceso directo.
+- Evitar agregar más texto explicativo.
+- Conectar decisión ejecutiva con evidencia visual.
+
+---
+
+
+## Sprint 24A.2 — Drilldown Click Fix
+
+Se corrige el acceso directo desde `Production Readiness`.
+
+Cambios:
+
+- Se elimina el texto redundante `Ver evidencia y detalle`.
+- El nombre del hallazgo queda clickeable.
+- El click selecciona automáticamente el Top Risk correspondiente.
+- Se agrega fallback por nombre del hallazgo si el código del check no llega correctamente.
+- Se hace scroll hacia `Riesgo seleccionado`.
+
+Resultado esperado:
+
+- Click en `Validar sobreimpresión` abre el detalle de sobreimpresión.
+- Click en `Revisar texto pequeño` abre el detalle de texto pequeño y sus ocurrencias.
+
+---
+
+
+## Sprint 24A.3 — Drilldown Event Delegation
+
+Se corrige el click desde `Production Readiness`.
+
+Cambios:
+
+- Se agrega event delegation global para `.pr2-review-link`.
+- Se mantiene `onclick` directo como respaldo.
+- El click busca el Top Risk por `check`.
+- Si el `check` no llega, infiere el check desde el título del item.
+- Al encontrar el riesgo, ejecuta `selectRisk(idx, 0)` y hace scroll hacia `Riesgo seleccionado`.
+
+Resultado esperado:
+
+- Click en `Validar sobreimpresión` selecciona el riesgo de sobreimpresión.
+- Click en `Revisar texto pequeño` selecciona texto pequeño y muestra ocurrencias.
+
+---
