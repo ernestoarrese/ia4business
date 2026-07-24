@@ -2262,6 +2262,71 @@ function navigateRiskOccurrence(delta){
 }
 
 
+
+
+
+// Sprint 25C.1 — RGB_OBJECT Evidence Depth dashboard enrichment
+if (typeof buildEvidenceItems === "function" && !window.__gate0_rgb_evidence_depth_patch) {
+  window.__gate0_rgb_evidence_depth_patch = true;
+
+  window.__gate0BuildEvidenceItemsBeforeRgbDepth = buildEvidenceItems;
+  buildEvidenceItems = function(r, insight) {
+    const items = window.__gate0BuildEvidenceItemsBeforeRgbDepth(r, insight) || [];
+    const check = String(r?.check || "").toUpperCase();
+
+    if (check !== "RGB_OBJECT") {
+      return items;
+    }
+
+    const pushUnique = (label, value) => {
+      if (value === undefined || value === null || value === "") return;
+      const exists = items.some(item => String(item.label || "") === label);
+      if (!exists) items.push({ label, value });
+    };
+
+    pushUnique("Espacio de color", r.color_space || "DeviceRGB");
+    pushUnique("Operador RGB", r.rgb_operator || "-");
+    pushUnique("Modo", r.rgb_mode === "stroke" ? "Trazo / stroke" : (r.rgb_mode === "fill" ? "Relleno / fill" : r.rgb_mode));
+    pushUnique("Método de detección", r.detection_method === "CONTENT_STREAM_RGB_OPERATOR" ? "Operador RGB en content stream" : r.detection_method);
+    pushUnique("Ubicación visual", r.bbox_available === false ? "No disponible en RGB_OBJECT v1" : "Disponible");
+    pushUnique("Área imprimible", r.printable_area_status === "NOT_EVALUABLE_WITHOUT_BBOX" ? "No evaluable sin bbox" : r.printable_area_status);
+    pushUnique("Requiere validación", r.requires_manual_location_review ? "Sí, validar si pertenece al arte productivo" : "");
+
+    return items;
+  };
+
+  window.__gate0RiskPossibleImpactBeforeRgbDepth = riskPossibleImpact;
+  riskPossibleImpact = function(r) {
+    const check = String(r?.check || "").toUpperCase();
+
+    if (check === "RGB_OBJECT") {
+      if (r?.bbox_available === false || r?.object_location_status === "NOT_LOCALIZED") {
+        return "Puede generar conversión de color no controlada si pertenece al arte productivo. Gate0 aún no confirma ubicación visual del objeto RGB.";
+      }
+
+      return "Puede generar conversión de color no controlada y desviación frente al color aprobado.";
+    }
+
+    return window.__gate0RiskPossibleImpactBeforeRgbDepth(r);
+  };
+
+  window.__gate0ThresholdLabelBeforeRgbDepth = thresholdLabel;
+  thresholdLabel = function(r, insight) {
+    const check = String(r?.check || "").toUpperCase();
+
+    if (check === "RGB_OBJECT") {
+      if (r?.bbox_available === false || r?.object_location_status === "NOT_LOCALIZED") {
+        return "RGB detectado; ubicación visual no disponible en v1";
+      }
+
+      return "RGB localizado en arte productivo";
+    }
+
+    return window.__gate0ThresholdLabelBeforeRgbDepth(r, insight);
+  };
+}
+
+
 </script>
 </body>
 </html>

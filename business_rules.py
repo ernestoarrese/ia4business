@@ -606,3 +606,90 @@ def build_business_assessment(findings, profile_path="profiles/flexo_pet_bopp_de
         "priority_findings": enriched
     }
 
+
+
+
+# ---------------------------------------------------------------------
+# Sprint 25C.1 — RGB_OBJECT Evidence Depth
+# ---------------------------------------------------------------------
+
+def _rgb_has_location_or_area(finding):
+    if not finding:
+        return False
+
+    if finding.get("bbox"):
+        return True
+
+    if finding.get("object_area_percent") is not None:
+        return True
+
+    return False
+
+
+def evaluate_rgb_object(finding, profile):
+    """
+    Evalúa RGB_OBJECT sin sobrededucir.
+
+    Sprint 25C.1:
+    - Si no hay bbox ni área, no inventa área 0.00%.
+    - Mantiene el hallazgo como observación contextual.
+    - Deja claro que falta ubicar visualmente el objeto.
+    """
+    finding = finding or {}
+    profile = profile or {}
+
+    rgb = profile.get("color", {}).get("rgb", {})
+    info_max = rgb.get("info_max_area_percent", 3.0)
+    critical_min = rgb.get("critical_min_area_percent", 15.0)
+    critical_types = rgb.get("critical_object_types", ["background", "gradient", "skin", "brand", "logo"])
+
+    if finding.get("is_printable") is False:
+        reason = "Objeto RGB detectado en elemento no imprimible."
+        return apply_business_fields(
+            finding,
+            "INFO",
+            "Color / Separaciones",
+            reason,
+            5,
+            "Validar si el elemento debe mantenerse como técnico/no imprimible.",
+            0,
+        )
+
+    if not _rgb_has_location_or_area(finding):
+        reason = (
+            "RGB detectado por operador de color, sin ubicación visual confirmada. "
+            "Gate0 aún no puede confirmar si pertenece al arte productivo o a un elemento técnico."
+        )
+        return apply_business_fields(
+            finding,
+            "INFO",
+            "Color / Separaciones",
+            reason,
+            6,
+            "Validar visualmente si el RGB pertenece al arte productivo antes de convertir.",
+            0,
+        )
+
+    area = float(finding.get("object_area_percent") or 0)
+    obj_type = str(finding.get("object_type", "")).lower()
+
+    if area >= critical_min or obj_type in critical_types:
+        sev, p, w = "CRITICAL", 1, 25
+        reason = f"Objeto RGB imprimible con riesgo de conversión no controlada. Área {area:.2f}%."
+    elif area >= info_max:
+        sev, p, w = "WARNING", 2, 12
+        reason = f"Objeto RGB imprimible de área media. Área {area:.2f}%."
+    else:
+        sev, p, w = "INFO", 6, 0
+        reason = f"Objeto RGB imprimible de área pequeña. Área {area:.2f}%."
+
+    return apply_business_fields(
+        finding,
+        sev,
+        "Color / Separaciones",
+        reason,
+        p,
+        "Convertir RGB a CMYK o spot validado según perfil.",
+        w,
+    )
+

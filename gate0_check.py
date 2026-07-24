@@ -1587,3 +1587,62 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+# ---------------------------------------------------------------------
+# Sprint 25C.1 — RGB_OBJECT Evidence Depth
+# ---------------------------------------------------------------------
+
+def check_rgb_objects(page_stream, page_number):
+    """
+    Detecta operadores RGB simples en content stream.
+
+    Sprint 25C.1:
+    - conserva compatibilidad con RGB_OBJECT v1.
+    - agrega evidencia técnica del operador detectado.
+    - declara explícitamente que no hay bbox/ubicación visual todavía.
+    """
+    import re
+
+    findings = []
+
+    if not page_stream:
+        return findings
+
+    rgb_patterns = [
+        (r"([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+rg\b", "fill", "rg"),
+        (r"([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+RG\b", "stroke", "RG"),
+    ]
+
+    for pattern, mode, operator in rgb_patterns:
+        for match in re.finditer(pattern, page_stream):
+            r, g, b = match.groups()
+
+            findings.append({
+                "check": "RGB_OBJECT",
+                "page": page_number,
+                "detail": f"Objeto RGB detectado ({mode})",
+                "value": f"RGB=({r}, {g}, {b})",
+                "rgb_values": [float(r), float(g), float(b)],
+                "rgb_operator": operator,
+                "rgb_mode": mode,
+                "color_space": "DeviceRGB",
+                "detection_method": "CONTENT_STREAM_RGB_OPERATOR",
+                "bbox_available": False,
+                "location_confidence": "NOT_AVAILABLE_IN_RGB_OBJECT_V1",
+                "object_location_status": "NOT_LOCALIZED",
+                "printable_area_status": "NOT_EVALUABLE_WITHOUT_BBOX",
+                "requires_manual_location_review": True,
+                "current_limitation": (
+                    "RGB_OBJECT v1 detecta operadores RGB en el content stream, "
+                    "pero todavía no identifica el objeto visual ni su bbox."
+                ),
+                "recommendation": (
+                    "Validar si el RGB pertenece al arte productivo. "
+                    "Si aplica, convertir RGB a CMYK o spot validado según perfil de impresión."
+                ),
+            })
+
+    return findings
+

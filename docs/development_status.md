@@ -1273,3 +1273,50 @@ Resultado esperado:
 - Si el hallazgo está fuera de TrimBox confirmado, sí puede pasar a observación contextual.
 
 ---
+
+
+## Sprint 25C.1 — RGB_OBJECT Evidence Depth
+
+Se mejora la evidencia de `RGB_OBJECT`.
+
+Hallazgo del audit:
+
+- El detector actual identifica operadores RGB simples en content stream:
+  - `rg` para relleno/fill.
+  - `RG` para trazo/stroke.
+- No existe todavía bbox ni ubicación visual del objeto RGB.
+- Por tanto, no se puede confirmar si el RGB está dentro/fuera del TrimBox.
+
+Cambios:
+
+- `check_rgb_objects()` agrega evidencia técnica:
+  - `rgb_values`
+  - `rgb_operator`
+  - `rgb_mode`
+  - `color_space`
+  - `detection_method`
+  - `bbox_available`
+  - `location_confidence`
+  - `object_location_status`
+  - `printable_area_status`
+  - `requires_manual_location_review`
+- `evaluate_rgb_object()` deja de inventar área `0.00%` cuando no hay bbox ni área.
+- El dashboard muestra evidencia específica para RGB:
+  - espacio de color
+  - operador
+  - modo
+  - método de detección
+  - ubicación visual no disponible
+  - área imprimible no evaluable sin bbox
+
+Criterio de producto:
+
+- RGB detectado sin bbox queda como observación contextual.
+- Si en el futuro RGB tiene bbox/área, la regla puede escalar a WARNING/CRITICAL según tamaño, tipo de objeto y área imprimible.
+- No se afirma que el color final será incorrecto; se indica riesgo de conversión no controlada.
+
+Backlog:
+
+- `RGB_OBJECT v2`: asociar RGB a objeto visual, bbox, área imprimible y tipo de objeto.
+
+---
