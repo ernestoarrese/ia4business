@@ -424,6 +424,45 @@
   }
 }
 
+
+/* Sprint 23B — Production Readiness language polish */
+.production-readiness-v2 .pr2-question{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:#667085;
+  font-weight:900;
+  margin-bottom:3px;
+}
+.production-readiness-v2 .pr2-answer{
+  font-size:20px;
+  font-weight:950;
+  letter-spacing:-.03em;
+  color:#111827;
+  line-height:1.15;
+}
+.production-readiness-v2 .pr2-summary{
+  margin-top:6px;
+  font-size:13px;
+  line-height:1.45;
+  color:#475467;
+  max-width:900px;
+}
+.production-readiness-v2 .pr2-next{
+  margin-top:8px;
+  font-size:13px;
+  line-height:1.4;
+  color:#111827;
+  font-weight:700;
+}
+.production-readiness-v2 .pr2-review li span{
+  display:block;
+  color:#667085;
+  font-size:12px;
+  line-height:1.35;
+  margin-top:2px;
+}
+
 </style>
 </head>
 <body>
@@ -462,7 +501,7 @@
         </div>
       </div>
 
-      <div class="hero-summary">
+      <div class="hero-summary" id="legacyHeroSummary">
         <span id="headline"></span>
         <span id="userMessage"></span>
       </div>
@@ -656,14 +695,18 @@ function productionStatusLabel(status){
 
 function renderProductionReadinessV2(data){
   const box=$("productionReadinessV2");
+  const legacy=$("legacyHeroSummary");
   if(!box)return;
 
   const pr=data.production_readiness_v2||{};
   if(!pr.status){
+    if(legacy) legacy.style.display="block";
     box.style.display="none";
     box.innerHTML="";
     return;
   }
+
+  if(legacy) legacy.style.display="none";
 
   const review=Array.isArray(pr.what_to_review_first)?pr.what_to_review_first:[];
 
@@ -672,8 +715,10 @@ function renderProductionReadinessV2(data){
     <div class="pr2-top">
       <div>
         <div class="kicker">Production Readiness</div>
-        <div class="pr2-status">${esc(productionStatusLabel(pr.status))}</div>
-        <div class="pr2-decision">${esc(pr.main_reason||pr.decision||"Revisión requerida según criterios Gate0.")}</div>
+        <div class="pr2-question">${esc(pr.question||"¿Está este archivo listo para producir?")}</div>
+        <div class="pr2-answer">${esc(pr.answer||productionStatusLabel(pr.status))}</div>
+        <div class="pr2-summary">${esc(pr.supervisor_summary||pr.main_reason||pr.decision||"Revisión requerida según criterios Gate0.")}</div>
+        ${pr.next_step?`<div class="pr2-next">${esc(pr.next_step)}</div>`:""}
       </div>
       <span class="pr2-badge ${esc(pr.status)}">${esc(pr.status)}</span>
     </div>
@@ -698,7 +743,10 @@ function renderProductionReadinessV2(data){
         <b>Qué revisar primero</b>
         <ol>
           ${review.slice(0,5).map(item=>`
-            <li>${esc(item.title||item.check||"Riesgo técnico")}</li>
+            <li>
+              ${esc(item.title||item.check||"Riesgo técnico")}
+              ${item.reason?`<span>${esc(item.reason)}</span>`:""}
+            </li>
           `).join("")}
         </ol>
       </div>

@@ -979,3 +979,46 @@ Dashboard:
 - Muestra decisión sugerida, riesgo principal, tiempo estimado y qué revisar primero.
 
 ---
+
+
+## Sprint 23B — Production Readiness v2 Language & Decision Quality
+
+Se refina la capa `production_readiness_v2` para que el output sea más cercano al criterio operativo de preprensa.
+
+Cambios:
+
+- Se agrega pregunta ejecutiva: `¿Está este archivo listo para producir?`
+- Se agrega `answer` en lenguaje simple.
+- Se agrega `supervisor_summary`.
+- Se agrega `next_step`.
+- Se mejora el nombre de riesgos en `what_to_review_first`.
+- Se mejora lenguaje para sobreimpresión con blanco:
+  - No se comunica como defecto confirmado.
+  - Se comunica como validación requerida.
+  - Se sugiere revisar con Overprint Preview.
+- El dashboard muestra una lectura más ejecutiva dentro del bloque Production Readiness.
+
+Objetivo de producto:
+
+- Que Gate0 no solo liste riesgos técnicos.
+- Que Gate0 ayude a decidir si el archivo puede liberarse, debe revisarse o debe retenerse.
+
+---
+
+
+## Sprint 23C — Hide Legacy Hero Summary
+
+Se oculta el resumen legacy del hero cuando existe `production_readiness_v2`.
+
+Motivo:
+
+- El resumen antiguo repetía información que ahora aparece mejor explicada en Production Readiness.
+- Se mantiene como fallback para reportes antiguos que no tengan `production_readiness_v2`.
+
+Resultado esperado:
+
+- El bloque superior queda más limpio.
+- La decisión ejecutiva principal vive en Production Readiness.
+- Se reduce redundancia visual.
+
+---
