@@ -463,6 +463,16 @@
   margin-top:2px;
 }
 
+
+/* Sprint 23D.2 — Reduce selected-risk and readiness redundancy */
+.detail .detail-comment{
+  display:none;
+}
+.production-readiness-v2 .pr2-review li .occurrence-count{
+  color:#667085;
+  font-size:12px;
+}
+
 </style>
 </head>
 <body>
@@ -742,12 +752,17 @@ function renderProductionReadinessV2(data){
       <div class="pr2-review">
         <b>Qué revisar primero</b>
         <ol>
-          ${review.slice(0,5).map(item=>`
-            <li>
-              ${esc(item.title||item.check||"Riesgo técnico")}
-              ${item.reason?`<span>${esc(item.reason)}</span>`:""}
-            </li>
-          `).join("")}
+          ${review.slice(0,5).map(item=>{
+            const title=item.title||item.check||"Riesgo técnico";
+            const count=Number(item.occurrence_count||1);
+            const suffix=count>1?` (${count} ocurrencias)`:"";
+            return `
+              <li>
+                ${esc(title)}${suffix?`<span class="occurrence-count">${esc(suffix)}</span>`:""}
+                ${item.reason?`<span>${esc(item.reason)}</span>`:""}
+              </li>
+            `;
+          }).join("")}
         </ol>
       </div>
     `:""}

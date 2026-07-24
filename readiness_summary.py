@@ -970,3 +970,439 @@ def build_production_readiness_v2(readiness_assessment, priority_findings, opera
         ),
     }
 
+
+
+# ---------------------------------------------------------------------
+# Sprint 23D — Production Readiness priority logic
+# ---------------------------------------------------------------------
+
+def _pr2_to_float(value, default=0.0):
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _pr2_priority_score(finding):
+    """
+    Operational priority for Production Readiness v2.
+
+    This score is not the global readiness score.
+    It only decides what Gate0 should present first to the user.
+    """
+    finding = finding or {}
+    check = _pr2_check(finding)
+    severity = _pr2_severity(finding)
+
+    score = 0.0
+
+    if severity == "CRITICAL":
+        score += 100
+    elif severity == "WARNING":
+        score += 60
+    elif severity == "INFO":
+        score += 10
+
+    if finding.get("is_blocking"):
+        score += 80
+
+    score_weight = _pr2_to_float(finding.get("score_weight"), 0)
+    score += min(max(score_weight, 0), 30)
+
+    check_weights = {
+        "FONT_NOT_EMBEDDED": 42,
+        "HIGH_TAC_RISK": 36,
+        "OVERPRINT_RISK": 34,
+        "SMALL_TEXT_RISK": 28,
+        "LOW_IMAGE_RESOLUTION": 24,
+        "BARCODE_RISK": 24,
+        "SEPARATION_COUNT_RISK": 22,
+        "SPOT_COLOR_RISK": 20,
+        "RGB_OBJECT": 18,
+        "PDF_STRUCTURE_RISK": 16,
+        "WHITE_INK_RISK": 14,
+    }
+
+    score += check_weights.get(check, 10)
+
+    detail_text = " ".join([
+        str(finding.get("detail") or ""),
+        str(finding.get("risk_reason") or ""),
+        str(finding.get("expert_comment") or ""),
+    ]).lower()
+
+    # WARNING overprint is an operational validation priority.
+    # It is not a confirmed defect, but it should appear early because
+    # the user must validate visual intent before release.
+    if check == "OVERPRINT_RISK" and severity == "WARNING":
+        score += 24
+
+        if (
+            "área visual significativa" in detail_text
+            or "area visual significativa" in detail_text
+            or "visual significativa" in detail_text
+            or "visual significant" in detail_text
+            or "100.00%" in detail_text
+            or "100%" in detail_text
+        ):
+            score += 26
+
+    # Overprint + white deserves even earlier validation.
+    # It is not a confirmed defect, but operationally should be reviewed first.
+    if _pr2_has_white_overprint_context(finding):
+        score += 24
+
+    # Generic INFO overprint should not jump above stronger risks.
+    if check == "OVERPRINT_RISK" and severity == "INFO":
+        score -= 18
+
+    # Prefer findings inside printable area.
+    if finding.get("is_inside_printable_area") is True:
+        score += 12
+    elif finding.get("is_inside_printable_area") is False:
+        score -= 14
+
+    overlap = _pr2_to_float(
+        finding.get("printable_area_overlap_percent")
+        or finding.get("area_overlap_percent")
+        or finding.get("visual_area_percent"),
+        0,
+    )
+
+    if overlap >= 80:
+        score += 8
+    elif overlap == 0 and finding.get("is_inside_printable_area") is False:
+        score -= 6
+
+    if finding.get("requires_visual_validation"):
+        score += 4
+
+    return score
+
+
+def _pr2_sort_findings_by_priority(findings):
+    findings = findings or []
+    return [
+        item
+        for _, item in sorted(
+            enumerate(findings),
+            key=lambda pair: (-_pr2_priority_score(pair[1]), pair[0])
+        )
+    ]
+
+
+def _pr2_next_step(status, review_items):
+    if status == "READY":
+        return "Liberar según flujo normal."
+
+    if status == "READY_WITH_NOTES":
+        return "Liberar si las observaciones son aceptables para el proceso."
+
+    if review_items:
+        titles = [item.get("title") for item in review_items if item.get("title")]
+        if len(titles) == 1:
+            return f"Revisar primero: {titles[0]}."
+        if len(titles) >= 2:
+            return f"Revisar primero: {titles[0]} y {titles[1]}."
+
+    if status in {"HIGH_RISK", "NO_GO"}:
+        return "Retener liberación y escalar a revisión técnica."
+
+    return "Revisar hallazgos principales antes de liberar."
+
+
+def build_production_readiness_v2(readiness_assessment, priority_findings, operational_profile=None):
+    """
+    Production Readiness v2 with operational priority logic.
+
+    Keeps the executive language from Sprint 23B and adds priority model for:
+    - primary_risk
+    - what_to_review_first
+    - next_step
+    """
+    readiness_assessment = readiness_assessment or {}
+    priority_findings = priority_findings or []
+    operational_profile = operational_profile or {}
+
+    decision = readiness_assessment.get("readiness_decision") or "-"
+    legacy_status = readiness_assessment.get("readiness_status") or "-"
+    score = readiness_assessment.get("readiness_score")
+
+    critical_risks = []
+    warning_risks = []
+    contextual_risks = []
+
+    for finding in priority_findings:
+        severity = _pr2_severity(finding)
+
+        if _pr2_is_contextual_non_blocking(finding):
+            contextual_risks.append(finding)
+            continue
+
+        if severity == "CRITICAL" or finding.get("is_blocking"):
+            critical_risks.append(finding)
+        elif severity == "WARNING":
+            warning_risks.append(finding)
+
+    critical_risks = _pr2_sort_findings_by_priority(critical_risks)
+    warning_risks = _pr2_sort_findings_by_priority(warning_risks)
+    contextual_risks = _pr2_sort_findings_by_priority(contextual_risks)
+
+    effective_risks = critical_risks + warning_risks
+
+    if any(f.get("is_blocking") for f in critical_risks) or decision == "NO_GO":
+        status = "NO_GO"
+        production_decision = "No liberar sin corrección o aprobación técnica."
+    elif critical_risks:
+        status = "HIGH_RISK"
+        production_decision = "Retener liberación hasta revisión técnica."
+    elif warning_risks:
+        status = "REVIEW_REQUIRED"
+        production_decision = "Revisar antes de liberar."
+    elif contextual_risks:
+        status = "READY_WITH_NOTES"
+        production_decision = "Liberable con observaciones."
+    else:
+        status = "READY"
+        production_decision = "Liberable."
+
+    primary = effective_risks[0] if effective_risks else (contextual_risks[0] if contextual_risks else None)
+
+    review_items = []
+    for finding in effective_risks[:5]:
+        review_items.append({
+            "check": finding.get("check"),
+            "title": _pr2_title(finding),
+            "severity": _pr2_severity(finding),
+            "priority_score": round(_pr2_priority_score(finding), 2),
+            "reason": _pr2_plain_reason(finding),
+            "action": _pr2_plain_action(finding),
+        })
+
+    if not review_items and contextual_risks:
+        for finding in contextual_risks[:3]:
+            review_items.append({
+                "check": finding.get("check"),
+                "title": _pr2_title(finding),
+                "severity": _pr2_severity(finding),
+                "priority_score": round(_pr2_priority_score(finding), 2),
+                "reason": _pr2_plain_reason(finding),
+                "action": _pr2_plain_action(finding),
+            })
+
+    review_time_basis = len(effective_risks)
+    if critical_risks:
+        review_time_basis += 2
+
+    confidence = "Media"
+    if status in {"READY", "NO_GO"}:
+        confidence = "Alta"
+
+    answer = _pr2_answer(status)
+    supervisor_summary = _pr2_supervisor_summary(status, effective_risks, contextual_risks)
+    next_step = _pr2_next_step(status, review_items)
+
+    return {
+        "version": "v2_priority_refined",
+        "question": "¿Está este archivo listo para producir?",
+        "answer": answer,
+        "status": status,
+        "legacy_status": legacy_status,
+        "legacy_decision": decision,
+        "decision": production_decision,
+        "score": score,
+        "confidence": confidence,
+        "main_reason": supervisor_summary,
+        "supervisor_summary": supervisor_summary,
+        "next_step": next_step,
+        "primary_risk": _pr2_title(primary) if primary else None,
+        "primary_risk_reason": _pr2_plain_reason(primary) if primary else None,
+        "primary_risk_priority_score": round(_pr2_priority_score(primary), 2) if primary else None,
+        "review_time_estimate": _pr2_review_time(review_time_basis),
+        "effective_risk_count": len(effective_risks),
+        "critical_risk_count": len(critical_risks),
+        "warning_risk_count": len(warning_risks),
+        "contextual_note_count": len(contextual_risks),
+        "what_to_review_first": review_items,
+        "operational_context": {
+            "profile_name": operational_profile.get("profile_name"),
+            "process": operational_profile.get("process"),
+            "substrate_family": operational_profile.get("substrate_family"),
+        },
+        "product_note": (
+            "Production Readiness v2 es una capa ejecutiva de decisión. "
+            "No reemplaza aún el criterio final de preprensa."
+        ),
+    }
+
+
+
+# ---------------------------------------------------------------------
+# Sprint 23D.2 — Deduplicate Production Readiness review items
+# ---------------------------------------------------------------------
+
+def _pr2_review_item_key(finding):
+    finding = finding or {}
+    check = _pr2_check(finding)
+    if check:
+        return check
+    return str(_pr2_title(finding)).upper()
+
+
+def _pr2_make_review_item(finding):
+    return {
+        "check": finding.get("check"),
+        "title": _pr2_title(finding),
+        "severity": _pr2_severity(finding),
+        "priority_score": round(_pr2_priority_score(finding), 2),
+        "reason": _pr2_plain_reason(finding),
+        "action": _pr2_plain_action(finding),
+        "occurrence_count": 1,
+    }
+
+
+def _pr2_collect_review_items(findings, limit=5):
+    """
+    Keep Production Readiness concise.
+
+    Multiple occurrences of the same check should appear once, with
+    occurrence_count incremented. Example:
+    - Revisar texto pequeño (2 ocurrencias)
+    instead of:
+    - Revisar texto pequeño
+    - Revisar texto pequeño
+    """
+    items = []
+    seen = {}
+
+    for finding in findings or []:
+        key = _pr2_review_item_key(finding)
+
+        if key in seen:
+            item = seen[key]
+            item["occurrence_count"] = int(item.get("occurrence_count") or 1) + 1
+            item["priority_score"] = max(
+                float(item.get("priority_score") or 0),
+                round(_pr2_priority_score(finding), 2)
+            )
+            continue
+
+        if len(items) >= limit:
+            continue
+
+        item = _pr2_make_review_item(finding)
+        seen[key] = item
+        items.append(item)
+
+    return items
+
+
+def build_production_readiness_v2(readiness_assessment, priority_findings, operational_profile=None):
+    """
+    Production Readiness v2 with:
+    - executive language
+    - operational priority
+    - deduplicated review list
+    """
+    readiness_assessment = readiness_assessment or {}
+    priority_findings = priority_findings or []
+    operational_profile = operational_profile or {}
+
+    decision = readiness_assessment.get("readiness_decision") or "-"
+    legacy_status = readiness_assessment.get("readiness_status") or "-"
+    score = readiness_assessment.get("readiness_score")
+
+    critical_risks = []
+    warning_risks = []
+    contextual_risks = []
+
+    for finding in priority_findings:
+        severity = _pr2_severity(finding)
+
+        if _pr2_is_contextual_non_blocking(finding):
+            contextual_risks.append(finding)
+            continue
+
+        if severity == "CRITICAL" or finding.get("is_blocking"):
+            critical_risks.append(finding)
+        elif severity == "WARNING":
+            warning_risks.append(finding)
+
+    critical_risks = _pr2_sort_findings_by_priority(critical_risks)
+    warning_risks = _pr2_sort_findings_by_priority(warning_risks)
+    contextual_risks = _pr2_sort_findings_by_priority(contextual_risks)
+
+    effective_risks = critical_risks + warning_risks
+
+    if any(f.get("is_blocking") for f in critical_risks) or decision == "NO_GO":
+        status = "NO_GO"
+        production_decision = "No liberar sin corrección o aprobación técnica."
+    elif critical_risks:
+        status = "HIGH_RISK"
+        production_decision = "Retener liberación hasta revisión técnica."
+    elif warning_risks:
+        status = "REVIEW_REQUIRED"
+        production_decision = "Revisar antes de liberar."
+    elif contextual_risks:
+        status = "READY_WITH_NOTES"
+        production_decision = "Liberable con observaciones."
+    else:
+        status = "READY"
+        production_decision = "Liberable."
+
+    primary = effective_risks[0] if effective_risks else (contextual_risks[0] if contextual_risks else None)
+
+    review_items = _pr2_collect_review_items(effective_risks, limit=5)
+
+    if not review_items and contextual_risks:
+        review_items = _pr2_collect_review_items(contextual_risks, limit=3)
+
+    review_time_basis = len(review_items)
+    if any(int(item.get("occurrence_count") or 1) > 1 for item in review_items):
+        review_time_basis += 1
+    if critical_risks:
+        review_time_basis += 2
+
+    confidence = "Media"
+    if status in {"READY", "NO_GO"}:
+        confidence = "Alta"
+
+    answer = _pr2_answer(status)
+    supervisor_summary = _pr2_supervisor_summary(status, effective_risks, contextual_risks)
+    next_step = _pr2_next_step(status, review_items)
+
+    return {
+        "version": "v2_priority_deduped",
+        "question": "¿Está este archivo listo para producir?",
+        "answer": answer,
+        "status": status,
+        "legacy_status": legacy_status,
+        "legacy_decision": decision,
+        "decision": production_decision,
+        "score": score,
+        "confidence": confidence,
+        "main_reason": supervisor_summary,
+        "supervisor_summary": supervisor_summary,
+        "next_step": next_step,
+        "primary_risk": _pr2_title(primary) if primary else None,
+        "primary_risk_reason": _pr2_plain_reason(primary) if primary else None,
+        "primary_risk_priority_score": round(_pr2_priority_score(primary), 2) if primary else None,
+        "review_time_estimate": _pr2_review_time(review_time_basis),
+        "effective_risk_count": len(effective_risks),
+        "critical_risk_count": len(critical_risks),
+        "warning_risk_count": len(warning_risks),
+        "contextual_note_count": len(contextual_risks),
+        "what_to_review_first": review_items,
+        "operational_context": {
+            "profile_name": operational_profile.get("profile_name"),
+            "process": operational_profile.get("process"),
+            "substrate_family": operational_profile.get("substrate_family"),
+        },
+        "product_note": (
+            "Production Readiness v2 es una capa ejecutiva de decisión. "
+            "No reemplaza aún el criterio final de preprensa."
+        ),
+    }
+

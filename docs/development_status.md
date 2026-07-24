@@ -1022,3 +1022,75 @@ Resultado esperado:
 - Se reduce redundancia visual.
 
 ---
+
+
+## Sprint 23D — Production Readiness Priority Logic
+
+Se mejora la priorización interna de `production_readiness_v2`.
+
+Objetivo:
+
+- Que `primary_risk` represente mejor lo que preprensa revisaría primero.
+- Que `what_to_review_first` quede ordenado por prioridad operativa, no solo por orden de aparición.
+- Alinear el bloque Production Readiness con Top Risks.
+
+Criterios agregados:
+
+- Severidad.
+- Riesgo bloqueante.
+- Peso de score.
+- Tipo de check.
+- Sobreimpresión con blanco.
+- Área imprimible / solape visual.
+- Necesidad de validación visual.
+
+Regla importante:
+
+- Un riesgo CRITICAL bloqueante sigue teniendo prioridad sobre cualquier WARNING.
+- Sobreimpresión WARNING, especialmente con blanco o alto solape visual, debe aparecer antes que riesgos menores de revisión.
+- Overprint INFO contextual no debe subir artificialmente.
+
+---
+
+
+## Sprint 23D.1 — Overprint Priority Hotfix
+
+Se ajusta la priorización de `production_readiness_v2`.
+
+Motivo:
+
+- En un caso real, Top Risks mostraba sobreimpresión primero, pero Production Readiness seguía mostrando texto pequeño como riesgo principal.
+- Esto generaba inconsistencia de lectura.
+
+Ajuste:
+
+- `OVERPRINT_RISK` en `WARNING` sube prioridad.
+- Si el texto del hallazgo indica área visual significativa o 100% de impacto visual, sube prioridad adicional.
+- `OVERPRINT_RISK` en `INFO` sigue sin escalar artificialmente.
+- Riesgos `CRITICAL` o bloqueantes siguen ganando prioridad.
+
+Resultado esperado:
+
+- Production Readiness debe priorizar sobreimpresión visual significativa antes que texto pequeño.
+- Se mantiene la lógica de que no es defecto confirmado, sino validación requerida.
+
+---
+
+
+## Sprint 23D.2 — Deduplicate Production Readiness Review Items
+
+Se ajusta `production_readiness_v2` para evitar redundancia visual.
+
+Cambios:
+
+- `what_to_review_first` agrupa ocurrencias repetidas del mismo check.
+- Si hay dos textos pequeños, se muestra una sola línea con `occurrence_count`.
+- El dashboard puede mostrar `(2 ocurrencias)` junto al riesgo agrupado.
+- Se oculta el comentario libre superior del panel de riesgo seleccionado porque repetía el contenido de las tarjetas ejecutivas.
+
+Resultado esperado:
+
+- Production Readiness deja de listar dos veces `Revisar texto pequeño`.
+- Riesgo seleccionado queda más limpio: título, severidad, navegación de ocurrencias, tarjetas ejecutivas y evidencia visual.
+
+---
