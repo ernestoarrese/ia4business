@@ -71,3 +71,37 @@ def test_production_readiness_blocking_critical_is_no_go():
     assert result["status"] == "NO_GO"
     assert result["decision"] == "No liberar sin corrección o revisión técnica."
     assert result["critical_risk_count"] == 1
+
+
+def test_production_readiness_v2_uses_supervisor_language_for_white_overprint():
+    result = build_production_readiness_v2(
+        {"readiness_status": "REVIEW_REQUIRED", "readiness_decision": "HOLD", "readiness_score": 86},
+        [{
+            "check": "OVERPRINT_RISK",
+            "severity": "WARNING",
+            "business_severity": "WARNING",
+            "score_weight": 8,
+            "is_blocking": False,
+            "white_ink_present": True,
+            "overprint_context": "WHITE_PRESENT_CONTEXTUAL_RISK",
+        }],
+        {},
+    )
+
+    assert result["version"] == "v2_language_refined"
+    assert result["answer"] == "Requiere revisión antes de liberar."
+    assert result["primary_risk"] == "Validar sobreimpresión con blanco"
+    assert "no se confirma" not in result["supervisor_summary"].lower()
+    assert "Overprint Preview" in result["what_to_review_first"][0]["action"]
+
+
+def test_production_readiness_v2_ready_answer_is_plain_language():
+    result = build_production_readiness_v2(
+        {"readiness_status": "READY", "readiness_decision": "GO", "readiness_score": 100},
+        [],
+        {},
+    )
+
+    assert result["question"] == "¿Está este archivo listo para producir?"
+    assert result["answer"] == "Sí. El archivo está listo para producir."
+    assert result["next_step"] == "Liberar según flujo normal."

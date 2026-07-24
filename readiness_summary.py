@@ -639,3 +639,334 @@ def build_production_readiness_v2(readiness_assessment, priority_findings, opera
         ),
     }
 
+
+
+# ---------------------------------------------------------------------
+# Sprint 23B — Production Readiness v2 language refinement
+# ---------------------------------------------------------------------
+
+def _pr2_check(finding):
+    return str((finding or {}).get("check") or "").upper()
+
+
+def _pr2_has_white_overprint_context(finding):
+    if not finding:
+        return False
+
+    check = _pr2_check(finding)
+    if check != "OVERPRINT_RISK":
+        return False
+
+    context = str(finding.get("overprint_context") or "").upper()
+
+    return bool(
+        finding.get("white_ink_present")
+        or finding.get("white_detected")
+        or finding.get("has_white_ink")
+        or finding.get("white_ink_detected")
+        or "WHITE" in context
+    )
+
+
+def _pr2_title(finding):
+    check = _pr2_check(finding)
+
+    if _pr2_has_white_overprint_context(finding):
+        return "Validar sobreimpresión con blanco"
+
+    names = {
+        "RGB_OBJECT": "Validar objetos RGB",
+        "LOW_IMAGE_RESOLUTION": "Revisar imagen de baja resolución",
+        "BARCODE_RISK": "Validar Barcode / QR",
+        "SMALL_TEXT_RISK": "Revisar texto pequeño",
+        "FONT_NOT_EMBEDDED": "Corregir fuente no embebida",
+        "HIGH_TAC_RISK": "Revisar TAC alto",
+        "OVERPRINT_RISK": "Validar sobreimpresión",
+        "SPOT_COLOR_RISK": "Revisar tintas spot / separaciones",
+        "SEPARATION_COUNT_RISK": "Revisar cantidad de separaciones",
+        "PDF_STRUCTURE_RISK": "Revisar estructura del PDF",
+        "WHITE_INK_RISK": "Validar blanco",
+    }
+
+    return (
+        (finding or {}).get("title")
+        or (finding or {}).get("display_name")
+        or names.get(check)
+        or check
+        or "Revisar riesgo técnico"
+    )
+
+
+def _pr2_plain_reason(finding):
+    if not finding:
+        return ""
+
+    check = _pr2_check(finding)
+
+    if _pr2_has_white_overprint_context(finding):
+        return (
+            "Hay señales de sobreimpresión y el archivo contiene blanco. "
+            "No es un defecto confirmado, pero debe validarse antes de liberar."
+        )
+
+    if check == "OVERPRINT_RISK":
+        return (
+            "Hay señales de sobreimpresión en el PDF. Puede ser normal, "
+            "pero conviene validar si afecta elementos críticos."
+        )
+
+    if check == "SMALL_TEXT_RISK":
+        return (
+            "Hay texto pequeño que puede comprometer legibilidad si está dentro "
+            "de una zona relevante del diseño."
+        )
+
+    if check == "LOW_IMAGE_RESOLUTION":
+        return (
+            "Hay una imagen con resolución efectiva baja que podría perder definición en impresión."
+        )
+
+    if check == "HIGH_TAC_RISK":
+        return (
+            "Hay zonas con cobertura total de tinta alta que pueden generar riesgo operativo."
+        )
+
+    if check == "FONT_NOT_EMBEDDED":
+        return (
+            "Hay fuentes no embebidas. El arte puede cambiar al abrirse o procesarse."
+        )
+
+    if check == "SPOT_COLOR_RISK":
+        return (
+            "Hay una condición en tintas spot o separaciones especiales que requiere revisión."
+        )
+
+    if check == "SEPARATION_COUNT_RISK":
+        return (
+            "La cantidad de separaciones imprimibles requiere validación antes de liberar."
+        )
+
+    return (
+        finding.get("risk_reason")
+        or finding.get("detail")
+        or finding.get("expert_comment")
+        or "Condición técnica a revisar."
+    )
+
+
+def _pr2_plain_action(finding):
+    if not finding:
+        return "Revisar el archivo antes de liberar."
+
+    check = _pr2_check(finding)
+
+    if _pr2_has_white_overprint_context(finding):
+        return "Abrir con Overprint Preview y validar que el blanco reserve correctamente."
+
+    if check == "OVERPRINT_RISK":
+        return "No bloquear automáticamente. Validar solo si afecta elementos sensibles."
+
+    if check == "SMALL_TEXT_RISK":
+        return "Validar legibilidad en el arte final y ajustar tamaño si aplica."
+
+    if check == "LOW_IMAGE_RESOLUTION":
+        return "Revisar la imagen en la zona marcada y reemplazarla si afecta calidad visual."
+
+    if check == "HIGH_TAC_RISK":
+        return "Validar contra el límite operativo del perfil y ajustar separación si aplica."
+
+    if check == "FONT_NOT_EMBEDDED":
+        return "Incrustar fuente, convertir a curvas o corregir el recurso faltante."
+
+    if check == "SPOT_COLOR_RISK":
+        return "Validar si las separaciones son productivas, duplicadas o técnicas."
+
+    if check == "SEPARATION_COUNT_RISK":
+        return "Revisar si todas las separaciones son necesarias para producción."
+
+    return finding.get("action") or finding.get("recommendation") or "Revisar antes de liberar."
+
+
+def _pr2_answer(status):
+    answers = {
+        "READY": "Sí. El archivo está listo para producir.",
+        "READY_WITH_NOTES": "Sí, con observaciones. El archivo puede liberarse si las notas son aceptables.",
+        "REVIEW_REQUIRED": "Requiere revisión antes de liberar.",
+        "HIGH_RISK": "No debería liberarse sin revisión técnica.",
+        "NO_GO": "No liberar sin corrección o aprobación técnica.",
+    }
+    return answers.get(status, "Requiere revisión de preprensa.")
+
+
+def _pr2_supervisor_summary(status, effective_risks, contextual_risks):
+    if status == "READY":
+        return "No se detectan condiciones relevantes que deban frenar la producción."
+
+    if status == "READY_WITH_NOTES":
+        return (
+            "El archivo tiene observaciones contextuales, pero no se identifican riesgos "
+            "que deban bloquear la liberación."
+        )
+
+    if status == "REVIEW_REQUIRED":
+        if len(effective_risks) == 1:
+            risk = _pr2_title(effective_risks[0])
+            return f"El archivo no necesariamente está mal, pero debe revisarse: {risk}."
+        return (
+            "El archivo no necesariamente está mal, pero tiene condiciones que deben "
+            "validarse antes de producción."
+        )
+
+    if status == "HIGH_RISK":
+        return (
+            "El archivo presenta riesgos altos. La liberación debería quedar retenida "
+            "hasta completar revisión técnica."
+        )
+
+    if status == "NO_GO":
+        return (
+            "El archivo presenta una condición crítica o bloqueante. No se recomienda "
+            "liberar sin corrección o aprobación técnica explícita."
+        )
+
+    return "Gate0 recomienda revisión técnica antes de liberar."
+
+
+def _pr2_next_step(status, review_items):
+    if status == "READY":
+        return "Liberar según flujo normal."
+
+    if status == "READY_WITH_NOTES":
+        return "Liberar si las observaciones son aceptables para el proceso."
+
+    if review_items:
+        titles = [item.get("title") for item in review_items if item.get("title")]
+        if len(titles) == 1:
+            return f"Revisar primero: {titles[0]}."
+        if len(titles) >= 2:
+            return f"Revisar primero: {titles[0]} y {titles[1]}."
+
+    if status in {"HIGH_RISK", "NO_GO"}:
+        return "Retener liberación y escalar a revisión técnica."
+
+    return "Revisar hallazgos principales antes de liberar."
+
+
+def build_production_readiness_v2(readiness_assessment, priority_findings, operational_profile=None):
+    """
+    Production Readiness v2 refined language.
+
+    Product-facing layer that answers:
+    - Is this file ready to produce?
+    - Why?
+    - What should be reviewed first?
+    - What is the next operational step?
+    """
+    readiness_assessment = readiness_assessment or {}
+    priority_findings = priority_findings or []
+    operational_profile = operational_profile or {}
+
+    decision = readiness_assessment.get("readiness_decision") or "-"
+    legacy_status = readiness_assessment.get("readiness_status") or "-"
+    score = readiness_assessment.get("readiness_score")
+
+    critical_risks = []
+    warning_risks = []
+    contextual_risks = []
+
+    for finding in priority_findings:
+        severity = _pr2_severity(finding)
+
+        if _pr2_is_contextual_non_blocking(finding):
+            contextual_risks.append(finding)
+            continue
+
+        if severity == "CRITICAL" or finding.get("is_blocking"):
+            critical_risks.append(finding)
+        elif severity == "WARNING":
+            warning_risks.append(finding)
+
+    effective_risks = critical_risks + warning_risks
+
+    if any(f.get("is_blocking") for f in critical_risks) or decision == "NO_GO":
+        status = "NO_GO"
+        production_decision = "No liberar sin corrección o aprobación técnica."
+    elif critical_risks:
+        status = "HIGH_RISK"
+        production_decision = "Retener liberación hasta revisión técnica."
+    elif warning_risks:
+        status = "REVIEW_REQUIRED"
+        production_decision = "Revisar antes de liberar."
+    elif contextual_risks:
+        status = "READY_WITH_NOTES"
+        production_decision = "Liberable con observaciones."
+    else:
+        status = "READY"
+        production_decision = "Liberable."
+
+    primary = effective_risks[0] if effective_risks else (contextual_risks[0] if contextual_risks else None)
+
+    review_items = []
+    for finding in effective_risks[:5]:
+        review_items.append({
+            "check": finding.get("check"),
+            "title": _pr2_title(finding),
+            "severity": _pr2_severity(finding),
+            "reason": _pr2_plain_reason(finding),
+            "action": _pr2_plain_action(finding),
+        })
+
+    if not review_items and contextual_risks:
+        for finding in contextual_risks[:3]:
+            review_items.append({
+                "check": finding.get("check"),
+                "title": _pr2_title(finding),
+                "severity": _pr2_severity(finding),
+                "reason": _pr2_plain_reason(finding),
+                "action": _pr2_plain_action(finding),
+            })
+
+    review_time_basis = len(effective_risks)
+    if critical_risks:
+        review_time_basis += 2
+
+    confidence = "Media"
+    if status in {"READY", "NO_GO"}:
+        confidence = "Alta"
+
+    answer = _pr2_answer(status)
+    supervisor_summary = _pr2_supervisor_summary(status, effective_risks, contextual_risks)
+    next_step = _pr2_next_step(status, review_items)
+
+    return {
+        "version": "v2_language_refined",
+        "question": "¿Está este archivo listo para producir?",
+        "answer": answer,
+        "status": status,
+        "legacy_status": legacy_status,
+        "legacy_decision": decision,
+        "decision": production_decision,
+        "score": score,
+        "confidence": confidence,
+        "main_reason": supervisor_summary,
+        "supervisor_summary": supervisor_summary,
+        "next_step": next_step,
+        "primary_risk": _pr2_title(primary) if primary else None,
+        "primary_risk_reason": _pr2_plain_reason(primary) if primary else None,
+        "review_time_estimate": _pr2_review_time(review_time_basis),
+        "effective_risk_count": len(effective_risks),
+        "critical_risk_count": len(critical_risks),
+        "warning_risk_count": len(warning_risks),
+        "contextual_note_count": len(contextual_risks),
+        "what_to_review_first": review_items,
+        "operational_context": {
+            "profile_name": operational_profile.get("profile_name"),
+            "process": operational_profile.get("process"),
+            "substrate_family": operational_profile.get("substrate_family"),
+        },
+        "product_note": (
+            "Production Readiness v2 es una capa ejecutiva de decisión. "
+            "No reemplaza aún el criterio final de preprensa."
+        ),
+    }
+
