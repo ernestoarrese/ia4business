@@ -944,3 +944,38 @@ Criterio de producto:
 - Gate0 no debe afirmar que el blanco está sobreimprimiendo hasta tener evidencia por objeto/separación.
 
 ---
+
+
+## Sprint 23A — Production Readiness v2 Foundation
+
+Se agrega una nueva capa ejecutiva `production_readiness_v2`.
+
+Objetivo:
+
+- Convertir hallazgos técnicos en una decisión de producción más clara.
+- Responder si el archivo está listo para producir.
+- Explicar motivo principal.
+- Estimar tiempo de revisión.
+- Listar qué revisar primero.
+
+Estados:
+
+- `READY`: listo para producir.
+- `READY_WITH_NOTES`: liberable con observaciones.
+- `REVIEW_REQUIRED`: requiere revisión antes de liberar.
+- `HIGH_RISK`: alto riesgo.
+- `NO_GO`: no liberar sin corrección o revisión técnica.
+
+Criterio:
+
+- Esta capa no reemplaza todavía el readiness engine original.
+- Se agrega como capa producto/ejectutiva encima de `readiness_assessment` y `priority_findings`.
+- Overprint genérico INFO no empuja revisión requerida.
+- Riesgos WARNING/CRITICAL con peso operativo sí aparecen como revisión prioritaria.
+
+Dashboard:
+
+- Se agrega bloque `Production Readiness` en el hero.
+- Muestra decisión sugerida, riesgo principal, tiempo estimado y qué revisar primero.
+
+---

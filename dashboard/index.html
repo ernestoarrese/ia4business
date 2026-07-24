@@ -336,6 +336,94 @@
   line-height:1.45;
 }
 
+
+/* Sprint 23A — Production Readiness v2 */
+.production-readiness-v2{
+  margin-top:14px;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  background:#f8fafc;
+  padding:14px;
+}
+.production-readiness-v2 .pr2-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.production-readiness-v2 .pr2-status{
+  font-size:18px;
+  font-weight:950;
+  letter-spacing:-.02em;
+  color:#111827;
+}
+.production-readiness-v2 .pr2-decision{
+  margin-top:3px;
+  font-size:13px;
+  color:#475467;
+  line-height:1.4;
+}
+.production-readiness-v2 .pr2-badge{
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:11px;
+  font-weight:950;
+  white-space:nowrap;
+}
+.production-readiness-v2 .pr2-badge.READY{background:#dcfce7;color:#166534}
+.production-readiness-v2 .pr2-badge.READY_WITH_NOTES{background:#ecfccb;color:#3f6212}
+.production-readiness-v2 .pr2-badge.REVIEW_REQUIRED{background:#fef3c7;color:#92400e}
+.production-readiness-v2 .pr2-badge.HIGH_RISK{background:#fee2e2;color:#991b1b}
+.production-readiness-v2 .pr2-badge.NO_GO{background:#fecaca;color:#7f1d1d}
+.production-readiness-v2 .pr2-grid{
+  display:grid;
+  grid-template-columns:1.4fr .8fr .8fr;
+  gap:10px;
+  margin-top:12px;
+}
+.production-readiness-v2 .pr2-card{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  padding:11px 12px;
+}
+.production-readiness-v2 .pr2-card b{
+  display:block;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:#667085;
+  margin-bottom:5px;
+}
+.production-readiness-v2 .pr2-card div{
+  font-size:13px;
+  line-height:1.4;
+  color:#344054;
+}
+.production-readiness-v2 .pr2-review{
+  margin-top:12px;
+}
+.production-readiness-v2 .pr2-review b{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:#667085;
+}
+.production-readiness-v2 .pr2-review ol{
+  margin:7px 0 0 18px;
+  padding:0;
+}
+.production-readiness-v2 .pr2-review li{
+  font-size:13px;
+  color:#344054;
+  margin:3px 0;
+}
+@media(max-width:980px){
+  .production-readiness-v2 .pr2-grid{
+    grid-template-columns:1fr;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -378,6 +466,8 @@
         <span id="headline"></span>
         <span id="userMessage"></span>
       </div>
+
+      <div id="productionReadinessV2" class="production-readiness-v2" style="display:none"></div>
 
       <div id="operationalProfile" class="profile-detail-panel"></div>
     </div>
@@ -552,6 +642,71 @@ function processSourceLabel(source){
   return map[source]||source||"No informado";
 }
 
+
+function productionStatusLabel(status){
+  const map={
+    READY:"Listo para producir",
+    READY_WITH_NOTES:"Liberable con observaciones",
+    REVIEW_REQUIRED:"Requiere revisión",
+    HIGH_RISK:"Alto riesgo",
+    NO_GO:"No liberar"
+  };
+  return map[status]||status||"No informado";
+}
+
+function renderProductionReadinessV2(data){
+  const box=$("productionReadinessV2");
+  if(!box)return;
+
+  const pr=data.production_readiness_v2||{};
+  if(!pr.status){
+    box.style.display="none";
+    box.innerHTML="";
+    return;
+  }
+
+  const review=Array.isArray(pr.what_to_review_first)?pr.what_to_review_first:[];
+
+  box.style.display="block";
+  box.innerHTML=`
+    <div class="pr2-top">
+      <div>
+        <div class="kicker">Production Readiness</div>
+        <div class="pr2-status">${esc(productionStatusLabel(pr.status))}</div>
+        <div class="pr2-decision">${esc(pr.main_reason||pr.decision||"Revisión requerida según criterios Gate0.")}</div>
+      </div>
+      <span class="pr2-badge ${esc(pr.status)}">${esc(pr.status)}</span>
+    </div>
+
+    <div class="pr2-grid">
+      <div class="pr2-card">
+        <b>Decisión sugerida</b>
+        <div>${esc(pr.decision||"-")}</div>
+      </div>
+      <div class="pr2-card">
+        <b>Riesgo principal</b>
+        <div>${esc(pr.primary_risk||"Sin riesgo principal")}</div>
+      </div>
+      <div class="pr2-card">
+        <b>Tiempo de revisión</b>
+        <div>${esc(pr.review_time_estimate||"-")}</div>
+      </div>
+    </div>
+
+    ${review.length?`
+      <div class="pr2-review">
+        <b>Qué revisar primero</b>
+        <ol>
+          ${review.slice(0,5).map(item=>`
+            <li>${esc(item.title||item.check||"Riesgo técnico")}</li>
+          `).join("")}
+        </ol>
+      </div>
+    `:""}
+  `;
+}
+
+
 function renderSeparations(data){
   const box=$("separationSummary");
   if(!box)return;
@@ -639,6 +794,7 @@ function render(data){
 
   renderRisks(currentRisks);
   renderOperationalProfile(data);
+  renderProductionReadinessV2(data);
   renderSeparations(data);
   compactTechnicalSeparationLabels();
   if(currentRisks.length) selectRisk(0);

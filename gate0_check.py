@@ -11,7 +11,7 @@ import fitz
 from context_engine import enrich_context
 from business_rules import build_business_assessment
 from readiness_engine import build_readiness_assessment
-from readiness_summary import build_readiness_summary, build_fix_plan
+from readiness_summary import build_readiness_summary, build_fix_plan, build_production_readiness_v2
 from config.spot_utils import build_spot_inventory
 from expert_comment_engine import enrich_report_with_expert_insights
 from check_intelligence import enrich_findings_with_check_intelligence
@@ -1507,6 +1507,12 @@ def build_report(pdf_path):
         priority_findings
     )
 
+    production_readiness_v2 = build_production_readiness_v2(
+        readiness_assessment,
+        priority_findings,
+        business_assessment.get("operational_profile", {})
+    )
+
     fix_plan = build_fix_plan(priority_findings)
 
     gate_status = calculate_gate_status(priority_findings)
@@ -1526,6 +1532,7 @@ def build_report(pdf_path):
         "business_assessment": business_assessment,
         "readiness_assessment": readiness_assessment,
         "readiness_summary": readiness_summary,
+        "production_readiness_v2": production_readiness_v2,
         "fix_plan": fix_plan,
         "findings": context_findings
     }

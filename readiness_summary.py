@@ -438,3 +438,204 @@ def build_fix_plan(findings, limit=6):
 
     return actionable[:limit]
 
+
+
+# ---------------------------------------------------------------------
+# Production Readiness v2
+# ---------------------------------------------------------------------
+
+def _pr2_severity(finding):
+    return str(
+        finding.get("business_severity")
+        or finding.get("severity")
+        or "INFO"
+    ).upper()
+
+
+def _pr2_title(finding):
+    check = str(finding.get("check") or "").upper()
+
+    names = {
+        "RGB_OBJECT": "Objetos RGB",
+        "LOW_IMAGE_RESOLUTION": "Imagen con baja resolución",
+        "BARCODE_RISK": "Barcode / QR",
+        "SMALL_TEXT_RISK": "Texto pequeño / legibilidad",
+        "FONT_NOT_EMBEDDED": "Fuente no embebida",
+        "HIGH_TAC_RISK": "TAC alto",
+        "OVERPRINT_RISK": "Sobreimpresión",
+        "SPOT_COLOR_RISK": "Tintas spot / separaciones",
+        "SEPARATION_COUNT_RISK": "Cantidad de separaciones",
+        "PDF_STRUCTURE_RISK": "Estructura del PDF",
+        "WHITE_INK_RISK": "Blanco",
+    }
+
+    return (
+        finding.get("title")
+        or finding.get("display_name")
+        or names.get(check)
+        or check
+        or "Riesgo técnico"
+    )
+
+
+def _pr2_is_contextual_non_blocking(finding):
+    severity = _pr2_severity(finding)
+    score_weight = finding.get("score_weight", 0) or 0
+    is_blocking = bool(finding.get("is_blocking"))
+
+    if severity == "INFO":
+        return True
+
+    if score_weight == 0 and not is_blocking:
+        return True
+
+    return False
+
+
+def _pr2_review_time(minutes_basis):
+    if minutes_basis <= 0:
+        return "0–2 minutos"
+    if minutes_basis <= 2:
+        return "3–5 minutos"
+    if minutes_basis <= 4:
+        return "5–10 minutos"
+    return "10–15 minutos"
+
+
+def _pr2_primary_reason(status, effective_risks, contextual_risks):
+    if status == "READY":
+        return "No se detectaron riesgos relevantes que impidan la producción."
+
+    if status == "READY_WITH_NOTES":
+        return "El archivo tiene observaciones contextuales, pero no se detectan riesgos que deban bloquear la liberación."
+
+    if status == "REVIEW_REQUIRED":
+        if len(effective_risks) == 1:
+            return "Hay 1 riesgo que requiere revisión antes de liberar."
+        return f"Hay {len(effective_risks)} riesgos que requieren revisión antes de liberar."
+
+    if status == "HIGH_RISK":
+        return "El archivo presenta riesgos altos que pueden afectar producción o liberación."
+
+    if status == "NO_GO":
+        return "El archivo presenta un riesgo crítico o bloqueante. No se recomienda liberar sin corrección."
+
+    return "Gate0 requiere revisión del archivo antes de liberar."
+
+
+def build_production_readiness_v2(readiness_assessment, priority_findings, operational_profile=None):
+    """
+    Production Readiness v2.
+
+    Turns technical findings into an executive production decision.
+
+    Goal:
+    - Answer whether the file is ready to produce.
+    - Explain the main reason.
+    - Estimate review effort.
+    - List what to review first.
+
+    This does not replace the existing readiness engine yet.
+    It adds a product-facing decision layer.
+    """
+    readiness_assessment = readiness_assessment or {}
+    priority_findings = priority_findings or []
+    operational_profile = operational_profile or {}
+
+    decision = readiness_assessment.get("readiness_decision") or "-"
+    legacy_status = readiness_assessment.get("readiness_status") or "-"
+    score = readiness_assessment.get("readiness_score")
+
+    critical_risks = []
+    warning_risks = []
+    contextual_risks = []
+
+    for finding in priority_findings:
+        severity = _pr2_severity(finding)
+
+        if _pr2_is_contextual_non_blocking(finding):
+            contextual_risks.append(finding)
+            continue
+
+        if severity == "CRITICAL" or finding.get("is_blocking"):
+            critical_risks.append(finding)
+        elif severity == "WARNING":
+            warning_risks.append(finding)
+
+    effective_risks = critical_risks + warning_risks
+
+    if any(f.get("is_blocking") for f in critical_risks) or decision == "NO_GO":
+        status = "NO_GO"
+        production_decision = "No liberar sin corrección o revisión técnica."
+    elif critical_risks:
+        status = "HIGH_RISK"
+        production_decision = "No liberar sin revisión técnica."
+    elif warning_risks:
+        status = "REVIEW_REQUIRED"
+        production_decision = "Revisar antes de liberar."
+    elif contextual_risks:
+        status = "READY_WITH_NOTES"
+        production_decision = "Liberable con observaciones."
+    else:
+        status = "READY"
+        production_decision = "Liberable."
+
+    primary = effective_risks[0] if effective_risks else (contextual_risks[0] if contextual_risks else None)
+
+    review_items = []
+    for finding in effective_risks[:5]:
+        review_items.append({
+            "check": finding.get("check"),
+            "title": _pr2_title(finding),
+            "severity": _pr2_severity(finding),
+            "reason": finding.get("risk_reason") or finding.get("detail") or finding.get("expert_comment") or "",
+            "action": finding.get("action") or finding.get("recommendation") or "Revisar antes de liberar.",
+        })
+
+    if not review_items and contextual_risks:
+        for finding in contextual_risks[:3]:
+            review_items.append({
+                "check": finding.get("check"),
+                "title": _pr2_title(finding),
+                "severity": _pr2_severity(finding),
+                "reason": finding.get("risk_reason") or finding.get("detail") or finding.get("expert_comment") or "",
+                "action": finding.get("action") or finding.get("recommendation") or "Validar si aplica.",
+            })
+
+    review_time_basis = len(effective_risks)
+    if critical_risks:
+        review_time_basis += 2
+
+    confidence = "Media"
+    if status in {"READY", "NO_GO"}:
+        confidence = "Alta"
+    elif contextual_risks and not effective_risks:
+        confidence = "Media"
+
+    return {
+        "version": "v2_foundation",
+        "status": status,
+        "legacy_status": legacy_status,
+        "legacy_decision": decision,
+        "decision": production_decision,
+        "score": score,
+        "confidence": confidence,
+        "main_reason": _pr2_primary_reason(status, effective_risks, contextual_risks),
+        "primary_risk": _pr2_title(primary) if primary else None,
+        "review_time_estimate": _pr2_review_time(review_time_basis),
+        "effective_risk_count": len(effective_risks),
+        "critical_risk_count": len(critical_risks),
+        "warning_risk_count": len(warning_risks),
+        "contextual_note_count": len(contextual_risks),
+        "what_to_review_first": review_items,
+        "operational_context": {
+            "profile_name": operational_profile.get("profile_name"),
+            "process": operational_profile.get("process"),
+            "substrate_family": operational_profile.get("substrate_family"),
+        },
+        "product_note": (
+            "Production Readiness v2 es una capa ejecutiva de decisión. "
+            "No reemplaza aún el criterio final de preprensa."
+        ),
+    }
+
