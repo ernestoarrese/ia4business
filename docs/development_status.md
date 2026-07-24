@@ -1153,3 +1153,60 @@ Resultado esperado:
 - Click en `Revisar texto pequeño` selecciona texto pequeño y muestra ocurrencias.
 
 ---
+
+
+## Sprint 25A — Risk Visual Evidence Clustering
+
+Se agrega agrupación visual de ocurrencias para riesgos con bbox.
+
+Alcance inicial:
+
+- `SMALL_TEXT_RISK`
+- `LOW_IMAGE_RESOLUTION`
+
+Cambios backend:
+
+- `sort_top_risks()` conserva `occurrences`.
+- Se agrega `visual_zones` cuando hay ocurrencias cercanas o solapadas.
+- Cada zona contiene:
+  - `zone_index`
+  - `page`
+  - `bbox` unido
+  - `occurrence_count`
+  - `occurrences`
+- Se mantiene compatibilidad con navegación antigua por `occurrences`.
+
+Cambios dashboard:
+
+- Si existen `visual_zones`, la navegación usa zonas.
+- Muestra `Zona X / N`.
+- Muestra cuántas ocurrencias contiene la zona.
+- La evidencia visual usa el bbox unido de la zona.
+- Top Risks puede mostrar cantidad de ocurrencias y zonas.
+
+Criterio:
+
+- No se aplica todavía a `OVERPRINT_RISK`.
+- No infiere intención de diseño.
+- Solo agrupa por cercanía geométrica en la misma página.
+
+---
+
+
+## Sprint 25A.1 — Safe BBox Helper
+
+Se corrige error JavaScript en navegación de zonas visuales.
+
+Problema:
+
+- El dashboard usaba `hasRenderableBbox()` dentro de la navegación por `visual_zones`.
+- La función no estaba definida en el bundle final.
+- Al seleccionar un riesgo con zonas visuales, el panel `Riesgo seleccionado` fallaba.
+
+Corrección:
+
+- Se agrega helper global `hasRenderableBbox(item)`.
+- Soporta bbox como array `[x0,y0,x1,y1]` o string `"x0,y0,x1,y1"`.
+- Permite que `riskVisualZones()` filtre zonas renderizables sin romper `selectRisk()`.
+
+---

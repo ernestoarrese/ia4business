@@ -1406,3 +1406,279 @@ def build_production_readiness_v2(readiness_assessment, priority_findings, opera
         ),
     }
 
+
+
+# ---------------------------------------------------------------------
+# Sprint 25A — Risk Visual Evidence Clustering
+# ---------------------------------------------------------------------
+
+VISUAL_CLUSTER_CHECKS = {
+    "SMALL_TEXT_RISK",
+    "LOW_IMAGE_RESOLUTION",
+}
+
+
+def _vzc_to_float(value, default=0.0):
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _vzc_parse_bbox(value):
+    if value is None:
+        return None
+
+    if isinstance(value, (list, tuple)) and len(value) == 4:
+        return [_vzc_to_float(x) for x in value]
+
+    if isinstance(value, str):
+        parts = [p.strip() for p in value.split(",")]
+        if len(parts) == 4:
+            return [_vzc_to_float(x) for x in parts]
+
+    return None
+
+
+def _vzc_bbox_area(bbox):
+    if not bbox:
+        return 0.0
+
+    x0, y0, x1, y1 = bbox
+    return max(0.0, x1 - x0) * max(0.0, y1 - y0)
+
+
+def _vzc_bbox_union(a, b):
+    if not a:
+        return b
+    if not b:
+        return a
+
+    return [
+        min(a[0], b[0]),
+        min(a[1], b[1]),
+        max(a[2], b[2]),
+        max(a[3], b[3]),
+    ]
+
+
+def _vzc_bbox_intersects_or_near(a, b, margin=36):
+    """
+    Returns True when two bboxes overlap or are close enough to be
+    reviewed as one visual zone.
+
+    margin is in PDF points. 36 pt ~= 12.7 mm.
+    """
+    if not a or not b:
+        return False
+
+    ax0, ay0, ax1, ay1 = a
+    bx0, by0, bx1, by1 = b
+
+    return not (
+        ax1 + margin < bx0
+        or bx1 + margin < ax0
+        or ay1 + margin < by0
+        or by1 + margin < ay0
+    )
+
+
+def _vzc_occurrence_sort_key(item):
+    bbox = _vzc_parse_bbox(item.get("bbox"))
+    return (
+        item.get("page") or 0,
+        bbox[1] if bbox else 0,
+        bbox[0] if bbox else 0,
+    )
+
+
+def build_visual_zones_for_occurrences(check, occurrences, limit=25):
+    """
+    Groups visual occurrences into approximate review zones.
+
+    This is intentionally conservative:
+    - only same page
+    - only bbox-based
+    - no semantic assumptions
+    """
+    check = str(check or "").upper()
+
+    if check not in VISUAL_CLUSTER_CHECKS:
+        return []
+
+    valid = []
+    for item in occurrences or []:
+        bbox = _vzc_parse_bbox(item.get("bbox"))
+        if bbox and _vzc_bbox_area(bbox) > 0:
+            compact = dict(item)
+            compact["bbox"] = bbox
+            valid.append(compact)
+
+    if not valid:
+        return []
+
+    valid = sorted(valid, key=_vzc_occurrence_sort_key)
+
+    zones = []
+
+    for item in valid:
+        page = item.get("page") or 1
+        bbox = item.get("bbox")
+        matched = None
+
+        for zone in zones:
+            if zone.get("page") != page:
+                continue
+
+            if _vzc_bbox_intersects_or_near(zone.get("bbox"), bbox):
+                matched = zone
+                break
+
+        if matched is None:
+            matched = {
+                "zone_index": len(zones),
+                "page": page,
+                "bbox": bbox,
+                "occurrence_count": 0,
+                "occurrences": [],
+            }
+            zones.append(matched)
+
+        matched["bbox"] = _vzc_bbox_union(matched.get("bbox"), bbox)
+        matched["occurrence_count"] += 1
+
+        if len(matched["occurrences"]) < limit:
+            matched["occurrences"].append(item)
+
+    for idx, zone in enumerate(zones):
+        zone["zone_index"] = idx
+        zone["bbox"] = [round(x, 2) for x in zone.get("bbox", [])]
+
+    return zones[:limit]
+
+
+def sort_top_risks(findings, limit=3):
+    """
+    Ordena hallazgos por prioridad de negocio, evitando repetir el mismo check.
+
+    Sprint 25A:
+    - conserva occurrences.
+    - agrega visual_zones para checks visuales.
+    - mantiene fallback compatible con navegación por ocurrencias.
+    """
+    if not findings:
+        return []
+
+    grouped = {}
+
+    severity_rank = {
+        "PASS": 0,
+        "INFO": 1,
+        "LOW": 1,
+        "WARNING": 2,
+        "MEDIUM": 2,
+        "CRITICAL": 3,
+        "HIGH": 3,
+    }
+
+    for finding in findings:
+        check = finding.get("check", "UNKNOWN")
+
+        business_severity = (
+            finding.get("business_severity")
+            or finding.get("severity")
+            or "INFO"
+        )
+
+        priority = finding.get("priority", 99)
+        score_weight = finding.get("score_weight", 0)
+        severity_score = severity_rank.get(str(business_severity).upper(), 1)
+
+        candidate_sort_key = (
+            priority,
+            -score_weight,
+            -severity_score
+        )
+
+        if check not in grouped:
+            grouped[check] = {
+                "best": finding,
+                "occurrence_count": 1,
+                "occurrences": [build_occurrence_summary(finding)],
+                "max_score_weight": score_weight,
+                "max_severity_score": severity_score,
+            }
+            continue
+
+        grouped[check]["occurrence_count"] += 1
+
+        if len(grouped[check].get("occurrences", [])) < 50:
+            grouped[check].setdefault("occurrences", []).append(build_occurrence_summary(finding))
+
+        grouped[check]["max_score_weight"] = max(
+            grouped[check]["max_score_weight"],
+            score_weight
+        )
+        grouped[check]["max_severity_score"] = max(
+            grouped[check]["max_severity_score"],
+            severity_score
+        )
+
+        current = grouped[check]["best"]
+        current_business_severity = (
+            current.get("business_severity")
+            or current.get("severity")
+            or "INFO"
+        )
+
+        current_sort_key = (
+            current.get("priority", 99),
+            -current.get("score_weight", 0),
+            -severity_rank.get(str(current_business_severity).upper(), 1)
+        )
+
+        if candidate_sort_key < current_sort_key:
+            grouped[check]["best"] = finding
+
+    deduped = []
+
+    for check, data in grouped.items():
+        item = dict(data["best"])
+        occurrences = order_occurrences(data["best"], data.get("occurrences", []))
+
+        item["occurrence_count"] = data["occurrence_count"]
+        item["occurrences"] = occurrences
+        item["max_score_weight"] = data["max_score_weight"]
+        item["max_severity_score"] = data["max_severity_score"]
+
+        visual_zones = build_visual_zones_for_occurrences(check, occurrences)
+
+        if visual_zones:
+            item["visual_zone_count"] = len(visual_zones)
+            item["visual_zones"] = visual_zones
+            item["visual_occurrence_count"] = sum(
+                int(zone.get("occurrence_count") or 0)
+                for zone in visual_zones
+            )
+
+        deduped.append(item)
+
+    deduped = sorted(
+        deduped,
+        key=lambda f: (
+            -severity_rank.get(str(f.get("business_severity") or f.get("severity") or "INFO").upper(), 1),
+            f.get("priority", 99),
+            -f.get("score_weight", 0),
+            -f.get("occurrence_count", 1)
+        )
+    )
+
+    actionable = [
+        f for f in deduped
+        if severity_rank.get(str(f.get("business_severity") or f.get("severity") or "INFO").upper(), 1) >= 2
+    ]
+
+    return actionable[:limit]
+

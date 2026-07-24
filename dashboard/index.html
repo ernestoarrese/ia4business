@@ -541,6 +541,21 @@
   border-radius:4px;
 }
 
+
+/* Sprint 25A — Risk Visual Evidence Clustering */
+.occurrence-nav .zone-meta{
+  font-size:11px;
+  color:#667085;
+  font-weight:700;
+  margin-top:3px;
+}
+.risk-comment .zone-mini{
+  display:inline-block;
+  margin-left:4px;
+  color:#667085;
+  font-weight:700;
+}
+
 </style>
 </head>
 <body>
@@ -1672,7 +1687,7 @@ function renderRisks(risks){
         <span class="badge ${esc(sev(r))}">${esc(sev(r))}</span>
       </div>
       <div class="risk-comment">${esc(r.expert_comment||r.risk_reason||r.detail||"Revisar hallazgo.")}</div>
-      ${r.occurrence_count>1?`<div class="risk-comment"><b>${r.occurrence_count}</b> ocurrencias detectadas</div>`:""}
+      ${r.occurrence_count>1?`<div class="risk-comment"><b>${r.occurrence_count}</b> ocurrencias detectadas${r.visual_zone_count?` <span class="zone-mini">/ ${r.visual_zone_count} zona${Number(r.visual_zone_count)===1?"":"s"}</span>`:""}</div>`:""}
     </div>`).join("");
 }
 
@@ -2136,6 +2151,116 @@ document.addEventListener("click",function(ev){
     btn.getAttribute("data-pr2-title") || btn.textContent
   );
 });
+
+
+
+
+
+// Sprint 25A.1 — Safe bbox helper for visual zones
+function hasRenderableBbox(item){
+  const bbox=item?.bbox;
+
+  if(Array.isArray(bbox) && bbox.length===4){
+    return bbox.every(v=>Number.isFinite(Number(v)));
+  }
+
+  if(typeof bbox==="string"){
+    const parts=bbox.split(",").map(x=>x.trim()).filter(Boolean);
+    return parts.length===4 && parts.every(v=>Number.isFinite(Number(v)));
+  }
+
+  return false;
+}
+
+
+// Sprint 25A — Visual-zone based occurrence navigation override
+function riskVisualZones(r){
+  return Array.isArray(r?.visual_zones) ? r.visual_zones.filter(z=>hasRenderableBbox(z)) : [];
+}
+
+function hasVisualZones(r){
+  return riskVisualZones(r).length > 0;
+}
+
+function visualNavigationItems(r){
+  const zones=riskVisualZones(r);
+  if(zones.length)return zones;
+
+  const occurrences=Array.isArray(r?.occurrences)?r.occurrences:[];
+  return occurrences.filter(item=>hasRenderableBbox(item));
+}
+
+function clampOccurrenceIndex(r,index){
+  const items=visualNavigationItems(r);
+  if(!items.length)return 0;
+  return Math.max(0,Math.min(Number(index)||0,items.length-1));
+}
+
+function activeOccurrenceData(r){
+  const items=visualNavigationItems(r);
+  if(!items.length)return null;
+  return items[clampOccurrenceIndex(r,currentOccurrenceIndex)];
+}
+
+function riskDataForActiveOccurrence(r){
+  const active=activeOccurrenceData(r);
+  if(!active)return r;
+
+  const merged={...r,...active};
+
+  merged.occurrence_count=r.occurrence_count;
+  merged.occurrences=r.occurrences;
+  merged.visual_zones=r.visual_zones;
+  merged.visual_zone_count=r.visual_zone_count;
+
+  if(hasVisualZones(r)){
+    merged.active_visual_zone_index=active.zone_index;
+    merged.active_visual_zone_occurrence_count=active.occurrence_count||1;
+    merged.active_visual_zone_occurrences=active.occurrences||[];
+    merged.page=active.page||r.page;
+    merged.bbox=active.bbox||r.bbox;
+  }
+
+  return merged;
+}
+
+function renderOccurrenceNav(r){
+  const items=visualNavigationItems(r);
+  if(items.length<=1)return "";
+
+  const idx=clampOccurrenceIndex(r,currentOccurrenceIndex);
+  const isZoneMode=hasVisualZones(r);
+  const active=items[idx]||{};
+  const totalOccurrences=Number(r?.occurrence_count||items.length);
+  const zoneOccurrences=Number(active?.occurrence_count||1);
+
+  if(isZoneMode){
+    return `
+      <div class="occurrence-nav">
+        <button type="button" onclick="navigateRiskOccurrence(-1)" ${idx<=0?"disabled":""}>← Anterior</button>
+        <span>Zona ${idx+1} / ${items.length}</span>
+        <button type="button" onclick="navigateRiskOccurrence(1)" ${idx>=items.length-1?"disabled":""}>Siguiente →</button>
+        <div class="zone-meta">${zoneOccurrences} ocurrencia${zoneOccurrences===1?"":"s"} en esta zona · ${totalOccurrences} ocurrencia${totalOccurrences===1?"":"s"} total${totalOccurrences===1?"":"es"}</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="occurrence-nav">
+      <button type="button" onclick="navigateRiskOccurrence(-1)" ${idx<=0?"disabled":""}>← Anterior</button>
+      <span>${idx+1} / ${items.length}</span>
+      <button type="button" onclick="navigateRiskOccurrence(1)" ${idx>=items.length-1?"disabled":""}>Siguiente →</button>
+    </div>
+  `;
+}
+
+function navigateRiskOccurrence(delta){
+  const base=currentRisks[currentSelectedRiskIndex];
+  if(!base)return;
+  const next=clampOccurrenceIndex(base,currentOccurrenceIndex+delta);
+  selectRisk(currentSelectedRiskIndex,next);
+}
+
 
 </script>
 </body>
