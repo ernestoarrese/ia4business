@@ -1418,3 +1418,121 @@ Backlog:
 - `FONT_NOT_EMBEDDED v2`: cruzar fuente no embebida con spans de texto para identificar texto, bbox y criticidad contextual.
 
 ---
+
+
+## Sprint 26A — Separation Usage v2 Foundation
+
+Se agrega una capa informativa `separation_usage_v2`.
+
+Objetivo:
+
+- Transformar `separation_summary` + `separation_usage_capability` en una lectura más clara por separación.
+- Mostrar si hay señales de presencia/uso a nivel de recursos PDF.
+- Mantener explícitamente que la capa es informativa.
+
+No cambia:
+
+- `operational_total`
+- clasificación de separaciones
+- `SPOT_COLOR_RISK`
+- `SEPARATION_COUNT_RISK`
+- `Production Readiness`
+
+Campos principales:
+
+- `version`
+- `safe_for_operational_decision`
+- `safe_for_reclassification`
+- `can_compute_bbox_by_separation`
+- `summary`
+- `items`
+
+Cada item incluye:
+
+- `name`
+- `type`
+- `is_printable`
+- `classification_source`
+- `usage_signal_status`
+- `resource_mention_count`
+- `bbox_available`
+- `decision_impact`
+- `operational_count_impact`
+
+Criterio de producto:
+
+- `RESOURCE_SIGNAL_FOUND` confirma señal técnica/presencia, no uso visual.
+- `NO_DIRECT_RESOURCE_SIGNAL` no significa que la separación no se use.
+- Sin bbox por separación, no debe afectar decisión operativa.
+
+Backlog:
+
+- `Separation Usage v2.1`: asociar separación a objetos reales.
+- `Separation Usage v2.2`: calcular bbox por separación.
+- `Separation Usage v2.3`: cruzar bbox con TrimBox/BleedBox.
+- `Separation Usage v3`: permitir impacto seguro en conteo operativo y readiness.
+
+---
+
+
+## Sprint 26A.1 — Separation Usage Function Order Fix
+
+Se corrige error de ejecución del pipeline legacy.
+
+Problema:
+
+- `build_report()` llamaba a `build_separation_usage_v2()`.
+- La función estaba definida después del flujo de ejecución principal.
+- Al ejecutar `gate0_check.py` como script, Python llegaba a la llamada antes de haber definido la función.
+
+Corrección:
+
+- Se mueve el bloque `build_separation_usage_v2()` antes de `build_report()`.
+- No cambia lógica de producto.
+- `separation_usage_v2` sigue siendo informativo y no decisorio.
+
+---
+
+
+## Sprint 26A.2 — Separation Summary Definition Fix
+
+Se corrige error de ejecución en `build_report()`.
+
+Problema:
+
+- `separation_usage_v2` recibía `separation_summary`.
+- `separation_summary` no estaba definido dentro de `build_report()`.
+- Esto generaba `NameError` durante el análisis.
+
+Corrección:
+
+- Se construye `separation_summary` antes de `report_data`.
+- Se expone `separation_summary` en el JSON del reporte.
+- `separation_usage_v2` usa esa misma base.
+- No cambia clasificación ni conteos de riesgo.
+
+---
+
+
+## Sprint 26A.3 — Compact UX Copy
+
+Se ajusta copy del dashboard para reducir repetición y evitar lenguaje técnico innecesario.
+
+Cambios:
+
+- En `Production Readiness`, se elimina la línea superior de `next_step` cuando repite lo mismo que `Qué revisar primero`.
+- En `Separation Usage v2`, se cambia el lenguaje:
+  - `con señales` → `con señal técnica`
+  - `sin señal directa` → `sin señal confirmada`
+  - `Sin bbox por separación` → `Sin ubicación visual por separación`
+- Se ocultan métricas demasiado técnicas en UI:
+  - `tint ops`
+  - `cs/CS`
+
+Criterio de producto:
+
+- El bloque debe ser resumen ejecutivo, no diagnóstico técnico profundo.
+- Debe aclarar que detecta señales técnicas, pero no confirma uso visual.
+- No cambia conteo operativo ni decisión de liberación.
+
+---

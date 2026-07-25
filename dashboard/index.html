@@ -556,6 +556,43 @@
   font-weight:700;
 }
 
+
+/* Sprint 26A — Separation Usage v2 Foundation */
+.sep-usage-v2{
+  margin-top:10px;
+  border:1px solid #e5e7eb;
+  background:#f8fafc;
+  border-radius:14px;
+  padding:10px 12px;
+  color:#475467;
+  font-size:12px;
+  line-height:1.35;
+}
+.sep-usage-v2 b{
+  display:block;
+  color:#111827;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  margin-bottom:5px;
+}
+.sep-usage-v2-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:6px;
+}
+.sep-usage-v2-chip{
+  display:inline-flex;
+  border:1px solid #d0d5dd;
+  background:#fff;
+  border-radius:999px;
+  padding:4px 8px;
+  font-size:11px;
+  font-weight:850;
+  color:#344054;
+}
+
 </style>
 </head>
 <body>
@@ -948,7 +985,6 @@ function renderProductionReadinessV2(data){
         <div class="pr2-question">${esc(pr.question||"¿Está este archivo listo para producir?")}</div>
         <div class="pr2-answer">${esc(pr.answer||productionStatusLabel(pr.status))}</div>
         <div class="pr2-summary">${esc(pr.supervisor_summary||pr.main_reason||pr.decision||"Revisión requerida según criterios Gate0.")}</div>
-        ${pr.next_step?`<div class="pr2-next">${esc(pr.next_step)}</div>`:""}
       </div>
       <span class="pr2-badge ${esc(pr.status)}">${esc(pr.status)}</span>
     </div>
@@ -1087,6 +1123,7 @@ function render(data){
   renderOperationalProfile(data);
   renderProductionReadinessV2(data);
   renderSeparations(data);
+  renderSeparationUsageV2(data);
   compactTechnicalSeparationLabels();
   if(currentRisks.length) selectRisk(0);
   else $("riskDetail").innerHTML='<div class="empty">No hay riesgos principales WARNING/CRITICAL para mostrar.</div>';
@@ -2458,6 +2495,85 @@ if (typeof buildEvidenceItems === "function" && !window.__gate0_font_evidence_de
 
     return window.__gate0ThresholdLabelBeforeFontDepth(r, insight);
   };
+}
+
+
+
+
+
+// Sprint 26A — Separation Usage v2 Foundation dashboard render
+function renderSeparationUsageV2(data){
+  const box=$("separationSummary");
+  if(!box)return;
+
+  const usage=data?.separation_usage_v2;
+  if(!usage || !usage.version)return;
+
+  const summary=usage.summary||{};
+  const detected=summary.detected_separations ?? 0;
+  const withSignals=summary.separations_with_usage_signals ?? 0;
+  const withoutSignals=summary.separations_without_usage_signals ?? 0;
+  const tokenCount=summary.usage_token_count ?? 0;
+  const selectorCount=summary.colorspace_selector_count ?? 0;
+
+  const decisionLabel=usage.safe_for_operational_decision
+    ? "Puede apoyar decisión"
+    : "Informativo, no decisorio";
+
+  const bboxLabel=usage.can_compute_bbox_by_separation
+    ? "BBox por separación disponible"
+    : "Sin bbox por separación";
+
+  box.insertAdjacentHTML("beforeend",`
+    <div class="sep-usage-v2">
+      <b>Uso de separaciones v2</b>
+      <div>${esc(decisionLabel)}. No cambia el conteo operativo ni la decisión de liberación.</div>
+      <div class="sep-usage-v2-row">
+        <span class="sep-usage-v2-chip">${esc(detected)} separaciones</span>
+        <span class="sep-usage-v2-chip">${esc(withSignals)} con señales</span>
+        <span class="sep-usage-v2-chip">${esc(withoutSignals)} sin señal directa</span>
+        <span class="sep-usage-v2-chip">${esc(tokenCount)} tint ops</span>
+        <span class="sep-usage-v2-chip">${esc(selectorCount)} cs/CS</span>
+        <span class="sep-usage-v2-chip">${esc(bboxLabel)}</span>
+      </div>
+    </div>
+  `);
+}
+
+
+
+
+
+// Sprint 26A.3 — Compact copy for Separation Usage v2 and Production Readiness
+function renderSeparationUsageV2(data){
+  const box=$("separationSummary");
+  if(!box)return;
+
+  const usage=data?.separation_usage_v2;
+  if(!usage || !usage.version)return;
+
+  const summary=usage.summary||{};
+  const detected=summary.detected_separations ?? 0;
+  const withSignals=summary.separations_with_usage_signals ?? 0;
+  const withoutSignals=summary.separations_without_usage_signals ?? 0;
+
+  const bboxLabel=usage.can_compute_bbox_by_separation
+    ? "Con ubicación visual por separación"
+    : "Sin ubicación visual por separación";
+
+  box.insertAdjacentHTML("beforeend",`
+    <div class="sep-usage-v2">
+      <b>Uso de separaciones v2</b>
+      <div>Diagnóstico informativo: detecta señales técnicas de presencia, no confirma uso visual.</div>
+      <div>No cambia el conteo operativo ni la decisión de liberación.</div>
+      <div class="sep-usage-v2-row">
+        <span class="sep-usage-v2-chip">${esc(detected)} separaciones</span>
+        <span class="sep-usage-v2-chip">${esc(withSignals)} con señal técnica</span>
+        <span class="sep-usage-v2-chip">${esc(withoutSignals)} sin señal confirmada</span>
+        <span class="sep-usage-v2-chip">${esc(bboxLabel)}</span>
+      </div>
+    </div>
+  `);
 }
 
 

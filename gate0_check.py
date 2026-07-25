@@ -1472,6 +1472,162 @@ def write_csv_report(findings, output_path):
         for finding in findings:
             writer.writerow(finding)
 
+# ---------------------------------------------------------------------
+# Sprint 26A — Separation Usage v2 Foundation
+# ---------------------------------------------------------------------
+
+def _suv2_compact_name(name):
+    import re
+    return re.sub(r"[^a-z0-9]", "", str(name or "").strip().lower())
+
+
+def _suv2_int(value, default=0):
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _suv2_lookup_resource_mentions(name, mentions):
+    """
+    Busca menciones de separación usando nombre exacto y forma compacta.
+    """
+    mentions = mentions or {}
+
+    candidates = [
+        str(name or ""),
+        str(name or "").strip(),
+        str(name or "").replace(" ", "_"),
+        _suv2_compact_name(name),
+    ]
+
+    compact_mentions = {
+        _suv2_compact_name(k): v
+        for k, v in mentions.items()
+    }
+
+    for key in candidates:
+        if key in mentions:
+            return _suv2_int(mentions.get(key), 0)
+
+    compact = _suv2_compact_name(name)
+    return _suv2_int(compact_mentions.get(compact), 0)
+
+
+def build_separation_usage_v2(separation_summary=None, separation_usage_capability=None):
+    """
+    Capa informativa sobre señales de uso de separaciones.
+
+    Sprint 26A:
+    - No reclasifica.
+    - No cambia conteo operativo.
+    - No afecta Production Readiness.
+    - Solo transforma capability/probe en una lectura por separación.
+    """
+    separation_summary = separation_summary or {}
+    separation_usage_capability = separation_usage_capability or {}
+
+    summary_items = separation_summary.get("items") or []
+    resource_mentions = separation_usage_capability.get("resource_separation_mentions") or {}
+
+    can_map_resources = bool(separation_usage_capability.get("can_map_separation_resources"))
+    can_compute_bbox = bool(separation_usage_capability.get("can_compute_bbox_by_separation"))
+    safe_for_reclassification = bool(separation_usage_capability.get("safe_for_reclassification"))
+
+    usage_token_count = _suv2_int(separation_usage_capability.get("usage_token_count"), 0)
+    colorspace_selector_count = _suv2_int(separation_usage_capability.get("colorspace_selector_count"), 0)
+
+    items = []
+
+    for item in summary_items:
+        name = item.get("name")
+        mention_count = _suv2_lookup_resource_mentions(name, resource_mentions)
+
+        if mention_count > 0:
+            usage_signal_status = "RESOURCE_SIGNAL_FOUND"
+            usage_signal_confidence = "LOW"
+            explanation = (
+                "La separación aparece en recursos PDF. Esto confirma presencia, "
+                "pero todavía no confirma uso visual ni ubicación."
+            )
+        elif can_map_resources:
+            usage_signal_status = "NO_DIRECT_RESOURCE_SIGNAL"
+            usage_signal_confidence = "LOW"
+            explanation = (
+                "No se encontró una señal directa para esta separación en el probe actual. "
+                "No significa que no se use; la lectura aún es limitada."
+            )
+        else:
+            usage_signal_status = "USAGE_SIGNAL_NOT_AVAILABLE"
+            usage_signal_confidence = "LOW"
+            explanation = (
+                "Gate0 aún no puede mapear de forma confiable recursos de separación para este archivo."
+            )
+
+        items.append({
+            "name": name,
+            "type": item.get("type"),
+            "original_type": item.get("original_type"),
+            "is_printable": item.get("is_printable"),
+            "classification_source": item.get("classification_source"),
+            "is_generic": item.get("is_generic"),
+            "usage_signal_status": usage_signal_status,
+            "usage_signal_confidence": usage_signal_confidence,
+            "resource_mention_count": mention_count,
+            "bbox_available": False,
+            "can_compute_bbox_by_separation": can_compute_bbox,
+            "safe_for_reclassification": safe_for_reclassification,
+            "decision_impact": "INFORMATIONAL_ONLY",
+            "operational_count_impact": "NO_IMPACT_IN_V2_FOUNDATION",
+            "explanation": explanation,
+        })
+
+    with_signals = [
+        i for i in items
+        if i.get("usage_signal_status") == "RESOURCE_SIGNAL_FOUND"
+    ]
+
+    without_signals = [
+        i for i in items
+        if i.get("usage_signal_status") != "RESOURCE_SIGNAL_FOUND"
+    ]
+
+    printable_items = [i for i in items if i.get("is_printable")]
+    non_printable_items = [i for i in items if i.get("is_printable") is False]
+
+    return {
+        "version": "v2_foundation",
+        "safe_for_operational_decision": False,
+        "safe_for_reclassification": False,
+        "can_compute_bbox_by_separation": can_compute_bbox,
+        "can_map_separation_resources": can_map_resources,
+        "source": "separation_summary + separation_usage_capability",
+        "summary": {
+            "detected_separations": len(items),
+            "printable_separations": len(printable_items),
+            "non_printable_separations": len(non_printable_items),
+            "separations_with_usage_signals": len(with_signals),
+            "separations_without_usage_signals": len(without_signals),
+            "usage_token_count": usage_token_count,
+            "colorspace_selector_count": colorspace_selector_count,
+        },
+        "items": items,
+        "product_note": (
+            "Separation Usage v2 Foundation es informativo. "
+            "No cambia conteos operativos, clasificación, riesgos ni Production Readiness."
+        ),
+        "current_limitation": (
+            "Gate0 puede detectar presencia de separaciones y algunas señales de recursos, "
+            "pero aún no calcula bbox ni uso visual por separación."
+        ),
+        "future_evolution": (
+            "Separation Usage v2 deberá asociar separación, objeto, bbox y área imprimible "
+            "antes de impactar decisiones operativas."
+        ),
+    }
+
 
 def build_report(pdf_path):
     input_path = validate_input_file(pdf_path)
@@ -1480,6 +1636,33 @@ def build_report(pdf_path):
     process_colors = detect_process_colors_from_pdf(str(input_path))
     page_boxes = detect_page_boxes(str(input_path))
     separation_usage_capability = detect_separation_usage_capability(str(input_path), separations=separations)
+
+    # Sprint 26A.2 — Build separation_summary before using it in separation_usage_v2.
+    try:
+        from gate0.services.separation_intelligence_service import SeparationIntelligenceService
+        separation_summary = SeparationIntelligenceService().build_summary(
+            separations,
+            process_count=len(process_colors or []),
+            process_count_source=(
+                "CONTENT_STREAM_PROCESS_COLORS"
+                if process_colors
+                else "NO_PROCESS_COLORS_DETECTED"
+            ),
+        )
+    except Exception as exc:
+        separation_summary = {
+            "total": len(separations or []),
+            "detected_total": len(separations or []),
+            "operational_total": len(separations or []),
+            "calculated_operational_total": len(separations or []),
+            "process_count": len(process_colors or []),
+            "process_count_source": "SEPARATION_SUMMARY_FALLBACK",
+            "items": [],
+            "printable_items": [],
+            "printable_names": [],
+            "warnings": [f"No se pudo construir separation_summary: {exc}"],
+        }
+
     live_fonts = detect_live_fonts(str(input_path))
     pdf_structure = analyze_pdf_structure(str(input_path))
 
@@ -1525,7 +1708,12 @@ def build_report(pdf_path):
         "total_alerts": len(context_findings),
         "separations": separations,
         "page_boxes": page_boxes,
+        "separation_summary": separation_summary,
         "separation_usage_capability": separation_usage_capability,
+        "separation_usage_v2": build_separation_usage_v2(
+            separation_summary=separation_summary,
+            separation_usage_capability=separation_usage_capability,
+        ),
         "pdf_structure": pdf_structure,
         "live_fonts": live_fonts,
         "operational_profile": business_assessment.get("operational_profile", {}),
@@ -1756,4 +1944,3 @@ def check_font_embedding(live_fonts):
         })
 
     return findings
-
