@@ -186,6 +186,85 @@ button{{width:100%;border:0;border-radius:999px;background:#111827;color:#fff;pa
 .support-box ul{{margin:8px 0 0;padding-left:18px;color:#334155;font-size:13px;line-height:1.45;max-height:220px;overflow:auto}}
 .support-box li span{{color:#667085;font-size:12px}}
 @media(max-width:800px){{.summary,.support-grid{{grid-template-columns:1fr}}}}
+
+
+/* Sprint 27A.1 — Compare file cards responsive fix */
+.compare-files,
+.file-pair,
+.inspected-files{{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:12px;
+  width:100%;
+  overflow:hidden;
+}}
+
+.compare-file,
+.file-card,
+.inspected-file,
+.ai-card,
+.pdf-card{{
+  min-width:0;
+  overflow:hidden;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  padding:14px 16px;
+  background:#fff;
+}}
+
+.compare-file b,
+.file-card b,
+.inspected-file b,
+.ai-card b,
+.pdf-card b{{
+  display:block;
+  font-size:14px;
+  line-height:1.25;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+}}
+
+.compare-file h2,
+.file-card h2,
+.inspected-file h2,
+.ai-card h2,
+.pdf-card h2{{
+  font-size:16px;
+  line-height:1.25;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+}}
+
+.compare-file-name,
+.file-name,
+.inspected-file-name{{
+  font-size:16px !important;
+  line-height:1.25 !important;
+  font-weight:900;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+}}
+
+table{{
+  width:100%;
+  table-layout:fixed;
+}}
+
+td,th{{
+  word-break:break-word;
+  overflow-wrap:anywhere;
+  vertical-align:top;
+}}
+
+@media(max-width:900px){{
+  .compare-files,
+  .file-pair,
+  .inspected-files{{
+    grid-template-columns:1fr;
+  }}
+}}
+
+
 </style>
 </head>
 <body>
@@ -495,6 +574,16 @@ async def analyze_local_zip(zip_name: str = Form(...), client: str = Form(defaul
 
 
 
+
+
+# Sprint 27A.1 — Compare page file display helpers
+def _compare_display_filename(value):
+    try:
+        return Path(str(value or "")).name or "—"
+    except Exception:
+        return str(value or "—")
+
+
 @app.post("/compare-candidate")
 async def compare_candidate(
     sid: str = Form(...),
@@ -594,11 +683,11 @@ a{{display:inline-block;margin-top:20px;color:#1d4ed8;font-weight:900;text-decor
   <section class="grid">
     <div class="metric">
       <small>AI inspeccionado</small>
-      <span>{html.escape(str(result.left_file))}</span>
+      <span>{html.escape(_compare_display_filename(result.left_file))}</span>
     </div>
     <div class="metric">
       <small>PDF inspeccionado</small>
-      <span>{html.escape(str(result.right_file))}</span>
+      <span>{html.escape(_compare_display_filename(result.right_file))}</span>
     </div>
   </section>
 

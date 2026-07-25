@@ -1623,3 +1623,43 @@ Se mantiene:
 - Sin impacto en conteo operativo, clasificación, riesgos ni Production Readiness.
 
 ---
+
+
+## Sprint 27A.1 — Compare File Card Layout Fix
+
+Se corrige layout de la página de comparación AI/PDF.
+
+Problema:
+
+- Las tarjetas `AI inspeccionado` y `PDF inspeccionado` mostraban rutas completas.
+- Los nombres largos rompían el ancho de página.
+- La tabla de comparación podía generar scroll horizontal excesivo.
+
+Corrección:
+
+- Se muestra solo el nombre del archivo, no la ruta completa.
+- Se reduce tamaño visual de las tarjetas de archivo.
+- Se fuerza `overflow-wrap:anywhere`.
+- Se usa `table-layout:fixed` para estabilizar la tabla.
+- Se mantiene la lógica de comparación sin cambios.
+
+---
+
+
+## Sprint 27A.2 — Compare CSS F-string Fix
+
+Se corrige error que impedía levantar la web.
+
+Problema:
+
+- El hotfix 27A.1 insertó CSS dentro de un HTML construido con `f-string`.
+- En Python, las llaves `{}` dentro de un `f-string` deben escaparse como `{{}}`.
+- Esto podía generar error de importación en `app.py` y evitar que `uvicorn` levantara.
+
+Corrección:
+
+- Se escapan las llaves del bloque CSS agregado en Sprint 27A.1.
+- No cambia lógica de comparación.
+- Solo corrige arranque de la web.
+
+---
