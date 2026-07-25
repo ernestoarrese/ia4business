@@ -1646,3 +1646,59 @@ def check_rgb_objects(page_stream, page_number):
 
     return findings
 
+
+
+
+# ---------------------------------------------------------------------
+# Sprint 25C.2 — HIGH_TAC_RISK Evidence Depth
+# ---------------------------------------------------------------------
+
+def check_high_tac(page_stream, page_number, tac_limit=280):
+    """
+    Detecta TAC alto desde operadores CMYK simples en content stream.
+
+    Sprint 25C.2:
+    - conserva HIGH_TAC_RISK v1.
+    - agrega evidencia técnica de CMYK/TAC.
+    - declara explícitamente que no hay bbox/ubicación visual todavía.
+    """
+    findings = []
+
+    for item in extract_cmyk_values_from_stream(page_stream):
+        tac = item["tac"]
+        c, m, y, k = item["cmyk"]
+
+        if tac > tac_limit:
+            excess = tac - tac_limit
+
+            findings.append({
+                "check": "HIGH_TAC_RISK",
+                "page": page_number,
+                "detail": f"Riesgo TAC alto en objeto CMYK ({item['mode']})",
+                "value": f"TAC={tac:.1f}% | CMYK=({c:.1f}, {m:.1f}, {y:.1f}, {k:.1f})",
+                "detected_tac": round(tac, 1),
+                "tac_limit": tac_limit,
+                "tac_excess": round(excess, 1),
+                "cmyk_values": [round(c, 1), round(m, 1), round(y, 1), round(k, 1)],
+                "cmyk_operator": item.get("operator"),
+                "cmyk_mode": item.get("mode"),
+                "color_space": "DeviceCMYK",
+                "detection_method": "CONTENT_STREAM_CMYK_OPERATOR",
+                "bbox_available": False,
+                "location_confidence": "NOT_AVAILABLE_IN_HIGH_TAC_RISK_V1",
+                "object_location_status": "NOT_LOCALIZED",
+                "printable_area_status": "NOT_EVALUABLE_WITHOUT_BBOX",
+                "requires_manual_location_review": True,
+                "current_limitation": (
+                    "HIGH_TAC_RISK v1 calcula TAC desde operadores CMYK en el content stream, "
+                    "pero todavía no identifica el objeto visual ni su bbox."
+                ),
+                "recommendation": (
+                    f"Validar si el TAC alto pertenece al arte productivo. "
+                    f"Si aplica, reducir carga total de tinta según estándar del proceso/sustrato. "
+                    f"Límite configurado: {tac_limit}%."
+                ),
+            })
+
+    return findings
+

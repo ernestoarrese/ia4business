@@ -693,3 +693,82 @@ def evaluate_rgb_object(finding, profile):
         w,
     )
 
+
+
+
+# ---------------------------------------------------------------------
+# Sprint 25C.2 — HIGH_TAC_RISK Evidence Depth
+# ---------------------------------------------------------------------
+
+def _tac_has_location_or_area(finding):
+    if not finding:
+        return False
+
+    if finding.get("bbox"):
+        return True
+
+    if finding.get("object_area_percent") is not None:
+        return True
+
+    return False
+
+
+def evaluate_high_tac_risk(finding, profile):
+    """
+    Evalúa HIGH_TAC_RISK sin sobrededucir área/ubicación.
+
+    Sprint 25C.2:
+    - Si no hay bbox ni área, no inventa área 0.00%.
+    - Mantiene la alerta como observación contextual.
+    - Si en el futuro llega bbox/área, conserva la lógica de severidad por exceso/área.
+    """
+    finding = finding or {}
+    profile = profile or {}
+
+    detected = float(finding.get("detected_tac") or 0)
+    max_tac = float(profile.get("tac", {}).get("max_tac_percent") or finding.get("tac_limit") or 280)
+    excess = detected - max_tac
+
+    finding["profile_tac_limit"] = max_tac
+    finding["tac_excess"] = round(max(excess, 0), 1)
+
+    if not _tac_has_location_or_area(finding):
+        reason = (
+            f"TAC detectado {detected:.0f}% vs límite {max_tac:.0f}%. "
+            f"Exceso {max(excess, 0):.0f}%. "
+            "Gate0 aún no puede confirmar la ubicación visual ni el área afectada."
+        )
+        return apply_business_fields(
+            finding,
+            "INFO",
+            "Carga de tinta / Impresión",
+            reason,
+            6,
+            "Validar visualmente si el TAC alto pertenece al arte productivo antes de ajustar separaciones.",
+            0,
+        )
+
+    area = float(finding.get("object_area_percent") or 0)
+
+    if excess >= 40:
+        sev, p, w = "CRITICAL", 1, 25
+    elif excess >= 20 or area >= 15:
+        sev, p, w = "WARNING", 2, 14
+    else:
+        sev, p, w = "INFO", 6, 0
+
+    reason = (
+        f"TAC detectado {detected:.0f}% vs límite {max_tac:.0f}%. "
+        f"Exceso {max(excess, 0):.0f}%, área {area:.2f}%."
+    )
+
+    return apply_business_fields(
+        finding,
+        sev,
+        "Carga de tinta / Impresión",
+        reason,
+        p,
+        "Reducir TAC según estándar del proceso/sustrato.",
+        w,
+    )
+

@@ -1320,3 +1320,54 @@ Backlog:
 - `RGB_OBJECT v2`: asociar RGB a objeto visual, bbox, área imprimible y tipo de objeto.
 
 ---
+
+
+## Sprint 25C.2 — HIGH_TAC_RISK Evidence Depth
+
+Se mejora la evidencia de `HIGH_TAC_RISK`.
+
+Hallazgo del audit:
+
+- El detector actual identifica operadores CMYK simples en content stream.
+- Calcula TAC sumando C+M+Y+K.
+- Genera `detected_tac`, pero no existe todavía bbox ni ubicación visual exacta.
+- Por tanto, no se puede confirmar todavía si el TAC alto está dentro/fuera del TrimBox ni el área afectada.
+
+Cambios:
+
+- `check_high_tac()` agrega evidencia técnica:
+  - `detected_tac`
+  - `tac_limit`
+  - `tac_excess`
+  - `cmyk_values`
+  - `cmyk_operator`
+  - `cmyk_mode`
+  - `color_space`
+  - `detection_method`
+  - `bbox_available`
+  - `location_confidence`
+  - `object_location_status`
+  - `printable_area_status`
+  - `requires_manual_location_review`
+- `evaluate_high_tac_risk()` deja de inventar área `0.00%` cuando no hay bbox ni área.
+- El dashboard muestra evidencia específica para TAC:
+  - TAC detectado
+  - límite TAC
+  - exceso TAC
+  - CMYK detectado
+  - operador
+  - modo
+  - ubicación visual no disponible
+  - área imprimible no evaluable sin bbox
+
+Criterio de producto:
+
+- TAC alto detectado sin bbox queda como observación contextual.
+- Si en el futuro TAC tiene bbox/área, la regla puede escalar a WARNING/CRITICAL según exceso, área y perfil operativo.
+- No se afirma ubicación exacta si el motor no puede probarla.
+
+Backlog:
+
+- `HIGH_TAC_RISK v2`: asociar TAC alto a objeto visual, bbox, área imprimible y tipo de construcción, por ejemplo negro enriquecido.
+
+---

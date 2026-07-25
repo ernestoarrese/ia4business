@@ -2327,6 +2327,76 @@ if (typeof buildEvidenceItems === "function" && !window.__gate0_rgb_evidence_dep
 }
 
 
+
+
+
+// Sprint 25C.2 — HIGH_TAC_RISK Evidence Depth dashboard enrichment
+if (typeof buildEvidenceItems === "function" && !window.__gate0_high_tac_evidence_depth_patch) {
+  window.__gate0_high_tac_evidence_depth_patch = true;
+
+  window.__gate0BuildEvidenceItemsBeforeTacDepth = buildEvidenceItems;
+  buildEvidenceItems = function(r, insight) {
+    const items = window.__gate0BuildEvidenceItemsBeforeTacDepth(r, insight) || [];
+    const check = String(r?.check || "").toUpperCase();
+
+    if (check !== "HIGH_TAC_RISK") {
+      return items;
+    }
+
+    const pushUnique = (label, value, suffix = "") => {
+      if (value === undefined || value === null || value === "") return;
+      const exists = items.some(item => String(item.label || "") === label);
+      if (!exists) items.push({ label, value: `${value}${suffix}` });
+    };
+
+    pushUnique("Espacio de color", r.color_space || "DeviceCMYK");
+    pushUnique("CMYK detectado", Array.isArray(r.cmyk_values) ? r.cmyk_values.join(", ") : "");
+    pushUnique("Exceso TAC", r.tac_excess, "%");
+    pushUnique("Operador CMYK", r.cmyk_operator || "-");
+    pushUnique("Modo", r.cmyk_mode === "stroke" ? "Trazo / stroke" : (r.cmyk_mode === "fill" ? "Relleno / fill" : r.cmyk_mode));
+    pushUnique("Método de detección", r.detection_method === "CONTENT_STREAM_CMYK_OPERATOR" ? "Operador CMYK en content stream" : r.detection_method);
+    pushUnique("Ubicación visual", r.bbox_available === false ? "No disponible en HIGH_TAC_RISK v1" : "Disponible");
+    pushUnique("Área imprimible", r.printable_area_status === "NOT_EVALUABLE_WITHOUT_BBOX" ? "No evaluable sin bbox" : r.printable_area_status);
+    pushUnique("Requiere validación", r.requires_manual_location_review ? "Sí, validar si pertenece al arte productivo" : "");
+
+    return items;
+  };
+
+  window.__gate0RiskPossibleImpactBeforeTacDepth = riskPossibleImpact;
+  riskPossibleImpact = function(r) {
+    const check = String(r?.check || "").toUpperCase();
+
+    if (check === "HIGH_TAC_RISK") {
+      if (r?.bbox_available === false || r?.object_location_status === "NOT_LOCALIZED") {
+        return "Puede generar problemas de secado, repinte, transferencia o estabilidad si pertenece al arte productivo. Gate0 aún no confirma la ubicación visual ni el área afectada.";
+      }
+
+      return "Puede generar problemas de secado, repinte, transferencia, bloqueo o estabilidad en prensa.";
+    }
+
+    return window.__gate0RiskPossibleImpactBeforeTacDepth(r);
+  };
+
+  window.__gate0ThresholdLabelBeforeTacDepth = thresholdLabel;
+  thresholdLabel = function(r, insight) {
+    const check = String(r?.check || "").toUpperCase();
+
+    if (check === "HIGH_TAC_RISK") {
+      const detected = firstValue(r?.detected_tac, r?.tac, insight?.detected_tac);
+      const limit = firstValue(r?.profile_tac_limit, r?.tac_limit, insight?.tac_limit, 280);
+
+      if (r?.bbox_available === false || r?.object_location_status === "NOT_LOCALIZED") {
+        return `TAC ${detected || "-"}% vs límite ${limit}% · ubicación visual no disponible en v1`;
+      }
+
+      return `TAC ${detected || "-"}% vs límite ${limit}%`;
+    }
+
+    return window.__gate0ThresholdLabelBeforeTacDepth(r, insight);
+  };
+}
+
+
 </script>
 </body>
 </html>
