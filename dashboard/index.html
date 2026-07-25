@@ -2397,6 +2397,70 @@ if (typeof buildEvidenceItems === "function" && !window.__gate0_high_tac_evidenc
 }
 
 
+
+
+
+// Sprint 25C.3 — FONT_NOT_EMBEDDED Evidence Depth dashboard enrichment
+if (typeof buildEvidenceItems === "function" && !window.__gate0_font_evidence_depth_patch) {
+  window.__gate0_font_evidence_depth_patch = true;
+
+  window.__gate0BuildEvidenceItemsBeforeFontDepth = buildEvidenceItems;
+  buildEvidenceItems = function(r, insight) {
+    const items = window.__gate0BuildEvidenceItemsBeforeFontDepth(r, insight) || [];
+    const check = String(r?.check || "").toUpperCase();
+
+    if (check !== "FONT_NOT_EMBEDDED") {
+      return items;
+    }
+
+    const pushUnique = (label, value) => {
+      if (value === undefined || value === null || value === "") return;
+      const exists = items.some(item => String(item.label || "") === label);
+      if (!exists) items.push({ label, value });
+    };
+
+    pushUnique("Fuente", r.font_name || "-");
+    pushUnique("Nombre interno", r.font_name_raw || "-");
+    pushUnique("Tipo de fuente", r.font_type || "-");
+    pushUnique("Extensión / embebido", r.font_ext || "n/a");
+    pushUnique("Estado", r.font_embedding_status === "NOT_EMBEDDED" ? "No embebida" : r.font_embedding_status);
+    pushUnique("Método de detección", r.detection_method === "PYMUPDF_PAGE_GET_FONTS" ? "Recurso de fuente del PDF" : r.detection_method);
+    pushUnique("Texto afectado", r.affected_text_available === false ? "No asociado en FONT_NOT_EMBEDDED v1" : (r.sample_text || "Disponible"));
+    pushUnique("Ubicación visual", r.bbox_available === false ? "No disponible en FONT_NOT_EMBEDDED v1" : "Disponible");
+    pushUnique("Requiere validación", r.requires_manual_text_review ? "Sí, revisar textos críticos antes de liberar" : "");
+
+    return items;
+  };
+
+  window.__gate0RiskPossibleImpactBeforeFontDepth = riskPossibleImpact;
+  riskPossibleImpact = function(r) {
+    const check = String(r?.check || "").toUpperCase();
+
+    if (check === "FONT_NOT_EMBEDDED") {
+      if (r?.affected_text_available === false || r?.text_association_status === "NOT_ASSOCIATED_IN_FONT_V1") {
+        return "Puede sustituirse al abrir, editar, ripear o procesar el PDF. Gate0 detecta la fuente no embebida, pero aún no asocia con precisión qué texto específico la usa.";
+      }
+
+      return "Puede sustituirse y modificar textos, medidas, legales, claims o apariencia aprobada.";
+    }
+
+    return window.__gate0RiskPossibleImpactBeforeFontDepth(r);
+  };
+
+  window.__gate0ThresholdLabelBeforeFontDepth = thresholdLabel;
+  thresholdLabel = function(r, insight) {
+    const check = String(r?.check || "").toUpperCase();
+
+    if (check === "FONT_NOT_EMBEDDED") {
+      const font = r?.font_name || r?.value || "fuente no identificada";
+      return `Fuente no embebida: ${font}`;
+    }
+
+    return window.__gate0ThresholdLabelBeforeFontDepth(r, insight);
+  };
+}
+
+
 </script>
 </body>
 </html>

@@ -772,3 +772,48 @@ def evaluate_high_tac_risk(finding, profile):
         w,
     )
 
+
+
+
+# ---------------------------------------------------------------------
+# Sprint 25C.3 — FONT_NOT_EMBEDDED Evidence Depth
+# ---------------------------------------------------------------------
+
+def evaluate_font_not_embedded(finding, profile):
+    """
+    Evalúa fuente no embebida.
+
+    Sprint 25C.3:
+    - mantiene severidad crítica.
+    - agrega razón con nombre de fuente si existe.
+    - no afirma texto afectado si no está asociado.
+    """
+    finding = finding or {}
+
+    font_name = finding.get("font_name") or finding.get("value") or "fuente no identificada"
+    font_type = finding.get("font_type")
+    text_status = finding.get("text_association_status")
+
+    if text_status == "NOT_ASSOCIATED_IN_FONT_V1":
+        reason = (
+            f"Fuente no embebida detectada: {font_name}"
+            f"{f' ({font_type})' if font_type else ''}. "
+            "Riesgo de sustitución tipográfica o cambio de contenido aprobado. "
+            "Gate0 aún no asocia de forma confiable qué texto específico usa esta fuente."
+        )
+    else:
+        reason = (
+            f"Fuente no embebida detectada: {font_name}. "
+            "Riesgo de sustitución tipográfica o cambio de contenido aprobado."
+        )
+
+    return apply_business_fields(
+        finding,
+        "CRITICAL",
+        "Fuentes / Texto",
+        reason,
+        1,
+        "Incrustar la fuente, convertir texto a curvas o corregir el recurso antes de avanzar.",
+        25,
+    )
+

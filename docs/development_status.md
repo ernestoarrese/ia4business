@@ -1371,3 +1371,50 @@ Backlog:
 - `HIGH_TAC_RISK v2`: asociar TAC alto a objeto visual, bbox, área imprimible y tipo de construcción, por ejemplo negro enriquecido.
 
 ---
+
+
+## Sprint 25C.3 — FONT_NOT_EMBEDDED Evidence Depth
+
+Se mejora la evidencia de `FONT_NOT_EMBEDDED`.
+
+Hallazgo del audit:
+
+- `detect_live_fonts()` usa `page.get_fonts(full=True)`.
+- Hoy detecta fuente no embebida a nivel de recurso PDF:
+  - página
+  - xref
+  - nombre base
+  - nombre interno
+  - tipo
+  - extensión
+  - estado de embebido
+- Todavía no asocia de forma confiable qué texto específico usa esa fuente.
+
+Cambios:
+
+- `check_font_embedding()` agrega:
+  - `font_name`
+  - `font_name_raw`
+  - `font_type`
+  - `font_ext`
+  - `font_embedding_status`
+  - `detection_method`
+  - `text_association_status`
+  - `affected_text_available`
+  - `bbox_available`
+  - `requires_manual_text_review`
+- `evaluate_font_not_embedded()` mantiene severidad crítica.
+- Dashboard muestra evidencia específica de fuente.
+- No se afirma texto afectado si no está asociado.
+
+Criterio de producto:
+
+- Fuente no embebida sigue siendo riesgo crítico.
+- Gate0 debe ser honesto: detecta la fuente, pero no confirma todavía el texto exacto afectado.
+- Acción recomendada: incrustar fuente, convertir texto a curvas o corregir el recurso.
+
+Backlog:
+
+- `FONT_NOT_EMBEDDED v2`: cruzar fuente no embebida con spans de texto para identificar texto, bbox y criticidad contextual.
+
+---

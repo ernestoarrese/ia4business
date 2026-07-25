@@ -1702,3 +1702,58 @@ def check_high_tac(page_stream, page_number, tac_limit=280):
 
     return findings
 
+
+
+
+# ---------------------------------------------------------------------
+# Sprint 25C.3 — FONT_NOT_EMBEDDED Evidence Depth
+# ---------------------------------------------------------------------
+
+def check_font_embedding(live_fonts):
+    """
+    Crea hallazgos para fuentes no embebidas.
+
+    Sprint 25C.3:
+    - conserva FONT_NOT_EMBEDDED v1.
+    - agrega evidencia técnica de fuente.
+    - declara explícitamente que no asocia texto afectado todavía.
+    """
+    findings = []
+
+    for font in live_fonts or []:
+        font_name = font.get("font_name")
+        font_type = font.get("font_type")
+        font_ext = font.get("font_ext")
+        font_name_raw = font.get("font_name_raw")
+        page = font.get("page", 1)
+
+        findings.append({
+            "page": page,
+            "check": "FONT_NOT_EMBEDDED",
+            "detail": f"Fuente no embebida detectada: {font_name}",
+            "value": f"{font_name} | {font_type}",
+            "font_name": font_name,
+            "font_name_raw": font_name_raw,
+            "font_type": font_type,
+            "font_ext": font_ext,
+            "embedded": False,
+            "font_embedding_status": "NOT_EMBEDDED",
+            "detection_method": "PYMUPDF_PAGE_GET_FONTS",
+            "text_association_status": "NOT_ASSOCIATED_IN_FONT_V1",
+            "affected_text_available": False,
+            "sample_text": None,
+            "bbox_available": False,
+            "object_location_status": "FONT_RESOURCE_LEVEL_ONLY",
+            "requires_manual_text_review": True,
+            "current_limitation": (
+                "FONT_NOT_EMBEDDED v1 detecta la fuente no embebida a nivel de recurso PDF, "
+                "pero todavía no asocia de forma confiable qué texto específico la usa."
+            ),
+            "recommendation": (
+                "Incrustar la fuente en el PDF o convertir el texto a curvas antes de liberar. "
+                "Validar especialmente textos legales, ingredientes, claims, códigos y advertencias."
+            ),
+        })
+
+    return findings
+
