@@ -1,0 +1,28 @@
+q
+0.95 0.10 0.10 rg
+60 230 180 80 re
+f
+Q
+q
+0.10 0.60 1.00 RG
+10 w
+280 230 180 80 re
+S
+Q
+q
+0.90 0.80 0.70 0.60 k
+80 80 260 95 re
+f
+Q
+q
+0 0 0 1 k
+BT
+/F1 14 Tf
+60 340 Td
+(RGB fill: operador rg - debe activar RGB_OBJECT) Tj
+0 -24 Td
+(RGB stroke: operador RG - debe activar RGB_OBJECT) Tj
+0 -24 Td
+(TAC alto: 90+80+70+60 = 300%, limite esperado 280%) Tj
+ET
+Q
