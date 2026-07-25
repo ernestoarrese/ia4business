@@ -1536,3 +1536,90 @@ Criterio de producto:
 - No cambia conteo operativo ni decisión de liberación.
 
 ---
+
+
+## Sprint 26B — Inline Separation Usage Signal Marker
+
+Se integra `separation_usage_v2` dentro de la lista existente de separaciones.
+
+Objetivo:
+
+- Evitar un panel adicional.
+- Mostrar una marca compacta por separación:
+  - `✓` = señal técnica encontrada.
+  - `—` = sin señal directa confirmada por el análisis actual.
+- Mantener el mensaje como informativo, no decisorio.
+
+Criterio de producto:
+
+- `✓` no significa aprobado.
+- `✓` no confirma uso visual ni ubicación exacta.
+- `—` no significa que la separación no se use.
+- La marca no cambia conteo operativo, clasificación, riesgos ni Production Readiness.
+
+---
+
+
+## Sprint 26B.1 — Separation Summary UI Fallback
+
+Se agrega fallback visual para `Color Separation Summary`.
+
+Problema:
+
+- En algunos reportes el dashboard podía mostrar “Sin información de separaciones”
+  aunque el JSON tuviera `separations`.
+- Esto podía ocurrir si `separation_summary.items` venía vacío o no era consumido correctamente.
+
+Corrección:
+
+- Si `separation_summary.items` está vacío pero `data.separations` tiene datos,
+  el dashboard crea una vista fallback mínima.
+- El fallback no cambia conteo operativo real ni clasificación backend.
+- Solo evita perder visibilidad de separaciones en la UI.
+
+---
+
+
+## Sprint 26B.2 — Inline Signal Runtime Helper Fix
+
+Se corrige error visual en `Color Separation Summary`.
+
+Problema:
+
+- El dashboard llamaba a `separationUsageSignalMap(data)`.
+- La función helper no quedó definida en runtime.
+- El render de separaciones se interrumpía y quedaba visible el mensaje:
+  `Sin información de separaciones.`
+
+Corrección:
+
+- Se agregan explícitamente los helpers:
+  - `separationUsageSignalMap`
+  - `separationUsageSignalForItem`
+  - `renderSeparationUsageSignal`
+- Se agrega prueba estática para evitar regresión.
+- No cambia backend ni lógica de conteo.
+
+---
+
+
+## Sprint 26B.3 — Hide Redundant Separation Usage Block
+
+Se elimina visualmente el bloque inferior `Uso de separaciones v2`.
+
+Motivo:
+
+- La señal de uso ya se muestra inline junto a cada separación.
+- El bloque inferior repetía contexto y ocupaba espacio.
+- La UI queda más compacta y más fácil de leer.
+
+Se mantiene:
+
+- `separation_usage_v2` en el JSON.
+- Marcador inline por separación:
+  - `✓` = señal técnica encontrada.
+  - `—` = sin señal directa confirmada.
+- Tooltips explicativos.
+- Sin impacto en conteo operativo, clasificación, riesgos ni Production Readiness.
+
+---

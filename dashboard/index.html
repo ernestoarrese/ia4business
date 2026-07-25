@@ -593,6 +593,48 @@
   color:#344054;
 }
 
+
+/* Sprint 26B — Inline Separation Usage Signal Marker */
+.sep-signal{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  border:1px solid #d0d5dd;
+  background:#fff;
+  color:#667085;
+  font-size:12px;
+  font-weight:950;
+  line-height:1;
+  cursor:help;
+}
+.sep-signal.has-signal{
+  border-color:#bbf7d0;
+  background:#f0fdf4;
+  color:#15803d;
+}
+.sep-signal.no-signal{
+  border-color:#e5e7eb;
+  background:#f8fafc;
+  color:#98a2b3;
+}
+.sep-signal-row{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.sep-usage-v2 .sep-usage-v2-row{
+  display:none;
+}
+.sep-usage-v2{
+  padding:9px 12px;
+}
+.sep-usage-v2 div{
+  font-size:12px;
+}
+
 </style>
 </head>
 <body>
@@ -1038,9 +1080,10 @@ function renderSeparations(data){
   const box=$("separationSummary");
   if(!box)return;
 
-  const summary=data.separation_summary||{};
+  const summary=normalizeSeparationSummaryForRender(data);
   const items=summary.items||[];
   const warnings=summary.warnings||[];
+  const usageMap=separationUsageSignalMap(data);
 
   if(!items.length){
     box.innerHTML=`<div class="empty">No se detectaron separaciones en el archivo.</div>`;
@@ -1085,7 +1128,10 @@ function renderSeparations(data){
         ${group.length ? group.map(i=>`
           <div class="sep-mini-row">
             <div class="sep-mini-name" title="${esc(i.name)}">${esc(i.name)}</div>
-            <span class="sep-tag compact ${esc(i.type)}" title="${esc(i.classification_source||"Backend")}">${esc(i.type)}</span>
+            <span class="sep-signal-row">
+              ${renderSeparationUsageSignal(i,usageMap)}
+              <span class="sep-tag compact ${esc(i.type)}" title="${esc(i.classification_source||"Backend")}">${esc(i.type)}</span>
+            </span>
           </div>
         `).join("") : `<div class="sep-mini-empty">${esc(emptyText)}</div>`}
       </div>
@@ -1123,7 +1169,6 @@ function render(data){
   renderOperationalProfile(data);
   renderProductionReadinessV2(data);
   renderSeparations(data);
-  renderSeparationUsageV2(data);
   compactTechnicalSeparationLabels();
   if(currentRisks.length) selectRisk(0);
   else $("riskDetail").innerHTML='<div class="empty">No hay riesgos principales WARNING/CRITICAL para mostrar.</div>';
@@ -2574,6 +2619,109 @@ function renderSeparationUsageV2(data){
       </div>
     </div>
   `);
+}
+
+
+
+
+
+// Sprint 26B.1 — Separation Summary UI fallback
+function normalizeSeparationSummaryForRender(data){
+  const summary=data?.separation_summary || {};
+  let items=Array.isArray(summary.items) ? summary.items : [];
+
+  if(items.length){
+    return summary;
+  }
+
+  const rawSeparations=Array.isArray(data?.separations) ? data.separations : [];
+
+  if(!rawSeparations.length){
+    return summary;
+  }
+
+  const fallbackItems=rawSeparations.map(name=>({
+    name:String(name||""),
+    type:"Revisar",
+    original_type:"Revisar",
+    is_printable:true,
+    classification_source:"FALLBACK_FROM_SEPARATIONS",
+    is_generic:false
+  }));
+
+  return {
+    ...summary,
+    total: rawSeparations.length,
+    detected_total: rawSeparations.length,
+    operational_total: summary.operational_total ?? rawSeparations.length,
+    calculated_operational_total: summary.calculated_operational_total ?? rawSeparations.length,
+    process_count: summary.process_count ?? 0,
+    process_count_source: summary.process_count_source || "FALLBACK_FROM_SEPARATIONS",
+    items: fallbackItems,
+    warnings:[
+      ...(summary.warnings || []),
+      "Vista fallback: separation_summary no trajo items; se muestran separaciones detectadas."
+    ]
+  };
+}
+
+
+
+
+
+// Sprint 26B.2 — Runtime helpers for inline separation usage markers
+function separationUsageSignalMap(data){
+  const usage=data?.separation_usage_v2;
+  const items=Array.isArray(usage?.items)?usage.items:[];
+  const map={};
+
+  const compact=(value)=>String(value||"")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g,"");
+
+  items.forEach(item=>{
+    const name=String(item?.name||"");
+    if(!name)return;
+
+    const payload={
+      status:item?.usage_signal_status||"",
+      hasSignal:item?.usage_signal_status==="RESOURCE_SIGNAL_FOUND",
+      confidence:item?.usage_signal_confidence||"",
+      resourceMentionCount:item?.resource_mention_count||0,
+      decisionImpact:item?.decision_impact||"INFORMATIONAL_ONLY"
+    };
+
+    map[name]=payload;
+    map[compact(name)]=payload;
+  });
+
+  return map;
+}
+
+function separationUsageSignalForItem(item,usageMap){
+  if(!item || !usageMap)return null;
+
+  const compact=(value)=>String(value||"")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g,"");
+
+  return usageMap[item.name] || usageMap[compact(item.name)] || null;
+}
+
+function renderSeparationUsageSignal(item,usageMap){
+  const usage=separationUsageSignalForItem(item,usageMap);
+
+  if(!usage){
+    return `<span class="sep-signal no-signal" title="Sin información de señal técnica en Separation Usage v2.">—</span>`;
+  }
+
+  if(usage.hasSignal){
+    return `<span class="sep-signal has-signal" title="Señal técnica encontrada. No confirma uso visual ni ubicación exacta.">✓</span>`;
+  }
+
+  return `<span class="sep-signal no-signal" title="Sin señal directa en v2. No significa que la separación no se use.">—</span>`;
 }
 
 
