@@ -1952,3 +1952,26 @@ Resultado:
 - El producto queda estable para continuar con nuevos sprints de producto/UX.
 
 ---
+
+
+## Sprint 28B.1 — Dashboard copy compact pass
+
+Se realiza una mejora menor de copy en el dashboard.
+
+Cambios:
+
+- `Top Risks` pasa a `Riesgos principales`.
+- `Riesgo seleccionado` pasa a `Detalle del riesgo`.
+- El título accesible del iframe pasa de `PDF analizado` a `Archivo PDF analizado`.
+- Se protege que no reaparezcan textos redundantes como `Vista del archivo` o `Preview de producción`.
+
+No cambia:
+
+- motor de análisis;
+- reglas de negocio;
+- Production Readiness;
+- separación de colores;
+- runtime isolation;
+- compare engine.
+
+---
