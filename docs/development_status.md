@@ -1866,3 +1866,33 @@ No cambia:
 - runtime isolation.
 
 ---
+
+
+## Sprint 27C.5A — Clean remaining business_rules duplicates
+
+Se eliminan duplicados remanentes en `business_rules.py`.
+
+Problema detectado en audit 27C.5:
+
+- `severity_meta` tenía dos definiciones.
+- `evaluate_font_not_embedded` tenía dos definiciones.
+- Python usaba la última definición, pero mantener versiones antiguas generaba riesgo de mantenimiento.
+
+Corrección:
+
+- Se elimina la definición antigua de cada función.
+- Se mantiene la última definición activa.
+- Se agregan pruebas de contrato para proteger:
+  - definición única;
+  - shape esperado de `severity_meta`;
+  - comportamiento crítico de `FONT_NOT_EMBEDDED`.
+
+No cambia:
+
+- umbrales;
+- severidades activas;
+- Production Readiness;
+- dashboard;
+- Runtime Isolation.
+
+---

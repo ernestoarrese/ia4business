@@ -93,14 +93,6 @@ def summarize_operational_profile(profile):
     }
 
 
-def severity_meta(severity, weights):
-    if severity == "CRITICAL":
-        return 1, weights.get("CRITICAL", 35)
-    if severity == "WARNING":
-        return 2, weights.get("WARNING", 15)
-    if severity == "INFO":
-        return 3, weights.get("INFO", 1)
-    return 4, 0
 
 
 
@@ -341,16 +333,6 @@ def evaluate_small_text_risk(finding, profile):
     return result
 
 
-def evaluate_font_not_embedded(finding, profile):
-    return apply_business_fields(
-        finding,
-        "CRITICAL",
-        "Fuentes / Texto",
-        "Fuente no embebida. Riesgo de sustitución tipográfica o cambio de contenido aprobado.",
-        1,
-        "Incrustar o convertir fuentes antes de avanzar.",
-        35
-    )
 
 
 def evaluate_overprint_risk(finding, profile):
