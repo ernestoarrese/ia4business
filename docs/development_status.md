@@ -1829,3 +1829,40 @@ No cambia:
 - runtime isolation.
 
 ---
+
+
+## Sprint 27C.4B — Consolidate readiness_summary.py Single Definitions
+
+Se consolida deuda técnica en `readiness_summary.py`.
+
+Problema:
+
+- Existían múltiples generaciones de funciones PR2 en el mismo archivo.
+- `build_production_readiness_v2` tenía varias definiciones históricas.
+- Python usaba la última definición activa, pero las anteriores generaban riesgo de mantenimiento.
+
+Corrección:
+
+- Se eliminan definiciones antiguas duplicadas.
+- Se mantiene una sola definición activa para:
+  - `sort_top_risks`
+  - `_pr2_title`
+  - `_pr2_is_contextual_non_blocking`
+  - `_pr2_next_step`
+  - `_pr2_priority_score`
+  - `_pr2_make_review_item`
+  - `_pr2_plain_reason`
+  - `_pr2_printable_area_confidence_confirmed`
+  - `build_production_readiness_v2`
+- Se agregan pruebas de contrato para proteger definición única y comportamiento activo.
+
+No cambia:
+
+- lógica activa de Production Readiness;
+- versión `v2_printable_area_priority`;
+- severidades;
+- reglas de negocio;
+- dashboard;
+- runtime isolation.
+
+---
