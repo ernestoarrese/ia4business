@@ -1691,3 +1691,42 @@ No cambia:
 - rutas runtime.
 
 ---
+
+
+## Sprint 27A.4.2 — Business Rule Regression Contracts
+
+Nota de ajuste 27A.4.2b:
+
+- Los hallazgos contextuales `INFO` pueden omitir `readiness_weight`; en contrato se interpreta ausencia como peso `0`.
+- El contrato de readiness no fuerza `HIGH_RISK` con un hallazgo crítico manual aislado, porque la decisión final depende de criticidad/clase/bloqueo según `readiness_engine`.
+- Los tests específicos existentes de `readiness_engine.py` siguen protegiendo `NO_GO` para críticos Clase A.
+
+
+
+Se recupera parte del hardening perdido del commit local `c735bd9`.
+
+Objetivo:
+
+- Proteger reglas de negocio antes de iniciar Runtime Isolation.
+- Evitar regresiones silenciosas en severidades, umbrales y readiness.
+- No cambiar comportamiento funcional ni UI.
+
+Contratos protegidos:
+
+- RGB sin bbox debe permanecer contextual.
+- RGB con área debe respetar umbrales 3% / 15%.
+- TAC igual o menor al límite no debe generar `HIGH_TAC_RISK`.
+- TAC sin bbox no debe escalar por área inventada.
+- Small Text debe respetar umbrales 4 pt / 5 pt.
+- Separaciones deben respetar 8 / 10 / 12.
+- Readiness debe mantener sus bandas operativas.
+
+No cambia:
+
+- Detection.
+- Dashboard.
+- Production Readiness.
+- Runtime paths.
+- Compare Engine.
+
+---
