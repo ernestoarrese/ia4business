@@ -132,57 +132,6 @@ def _gate0_is_non_printable_spot(name):
     return any(token in normalized for token in non_printable_contains)
 
 
-def build_spot_inventory(separations, config_path=DEFAULT_CONFIG_PATH):
-    keywords = load_spot_keywords(config_path)
-
-    inventory = []
-
-    for sep in separations:
-        category = classify_spot_name(sep, keywords)
-
-        inventory.append({
-            "original_name": sep,
-            "normalized_name": normalize_spot_name(sep),
-            "category": category,
-            "is_generic_suspicious": is_generic_suspicious_name(sep, keywords),
-            "is_pantone_suspicious": is_pantone_suspicious(sep)
-        })
-
-    printable_spots = [i for i in inventory if i["category"] == "PRINTABLE"]
-    white_spots = [i for i in inventory if i["category"] == "WHITE"]
-    technical_spots = [i for i in inventory if i["category"] == "TECHNICAL"]
-    varnish_spots = [i for i in inventory if i["category"] == "VARNISH"]
-    suspicious_spots = [
-        i for i in inventory
-        if i["is_generic_suspicious"] or i["is_pantone_suspicious"]
-    ]
-
-    process_count = 4
-    process_count_source = "ASSUMED_CMYK"
-
-    printable_separation_count = (
-        process_count
-        + len(printable_spots)
-        + len(white_spots)
-        + len(varnish_spots)
-    )
-
-    return {
-        "spot_count": len(separations),
-        "process_count": process_count,
-        "process_count_source": process_count_source,
-        "printable_separation_count": printable_separation_count,
-        "printable_spot_count": len(printable_spots),
-        "white_spot_count": len(white_spots),
-        "technical_spot_count": len(technical_spots),
-        "varnish_spot_count": len(varnish_spots),
-        "spots": inventory,
-        "white_spots": white_spots,
-        "technical_spots": technical_spots,
-        "varnish_spots": varnish_spots,
-        "suspicious_spots": suspicious_spots,
-        "duplicate_groups": group_equivalent_spots(separations)
-    }
 
 
 # Gate0 non-printable separation classification wrapper v1
@@ -200,80 +149,182 @@ def _gate0_normalize_nonprintable_name(name):
     return value
 
 def _gate0_is_non_printable_separation(name):
+    """
+    Gate0 non-printable separation classifier.
+
+    These names represent plans, technical artwork, substrate/material references,
+    dimensions or support layers. They must not count as printable/operative inks.
+    """
     normalized = _gate0_normalize_nonprintable_name(name)
+    compact = (
+        normalized
+        .replace(" ", "")
+        .replace("_", "")
+        .replace("-", "")
+        .replace("/", "")
+    )
 
-    exact = {
-        "all",
-        "pie",
-        "texto",
-        "text",
-        "sustrato",
-        "substrate",
-    }
-
-    if normalized in exact:
-        return True
-
-    keywords = [
+    non_printable_compact = {
         "plano",
+        "plano1",
+        "plano2",
         "dieline",
+        "diecut",
         "troquel",
-        "corte",
         "cut",
         "cutter",
         "knife",
-        "guia",
         "guide",
-        "dimension",
-        "dimensions",
+        "guia",
+        "sustrato",
+        "substrato",
+        "substrate",
+        "material",
+        "materials",
+        "materiales",
+        "technical",
+        "technicaldrawing",
+        "technicalinformation",
         "mechanical",
         "mechanicalartwork",
-        "technicaldrawing",
+        "dimensions",
+        "dimension",
+        "texto",
+        "text",
+        "reference",
+        "referencia",
+        "legend",
+        "notes",
+        "nota",
+    }
+
+    if compact in non_printable_compact:
+        return True
+
+    non_printable_contains = [
         "technical",
+        "technical drawing",
+        "technical information",
+        "drawing",
+        "mechanical",
+        "mechanical artwork",
+        "dimensions",
+        "dimension",
+        "plano",
+        "dieline",
+        "troquel",
+        "sustrato",
+        "substrato",
+        "substrate",
+        "material",
+        "materials",
+        "materiales",
+        "texto",
+        "text",
+        "reference",
+        "referencia",
+        "legend",
+        "notes",
+        "nota",
     ]
 
-    return any(keyword in normalized for keyword in keywords)
+    return any(token in normalized for token in non_printable_contains)
 
-_GATE0_ORIGINAL_BUILD_SPOT_INVENTORY = build_spot_inventory
 
 def build_spot_inventory(separations, config_path=DEFAULT_CONFIG_PATH):
-    inventory = _GATE0_ORIGINAL_BUILD_SPOT_INVENTORY(separations, config_path=config_path)
-    spots = list(inventory.get("spots", []))
+    """
+    Build spot/separation inventory.
 
-    for item in spots:
-        name = item.get("original_name") or item.get("name") or ""
-        if _gate0_is_non_printable_separation(name):
+    Consolidated version:
+    - Keeps the original keyword-based classification.
+    - Applies Gate0 non-printable separation filter.
+    - Excludes technical/plan/material separations from printable operational count.
+    """
+    keywords = load_spot_keywords(config_path)
+
+    spots = []
+
+    for sep in separations:
+        category = classify_spot_name(sep, keywords)
+
+        if _gate0_is_non_printable_separation(sep):
+            category = "TECHNICAL"
+
+        item = {
+            "original_name": sep,
+            "normalized_name": normalize_spot_name(sep),
+            "category": category,
+            "is_generic_suspicious": is_generic_suspicious_name(sep, keywords),
+            "is_pantone_suspicious": is_pantone_suspicious(sep),
+        }
+
+        if category in {"PRINTABLE", "WHITE", "VARNISH"}:
+            item["is_printable"] = True
+        else:
+            item["is_printable"] = False
+
+        if _gate0_is_non_printable_separation(sep):
             item["category"] = "TECHNICAL"
             item["is_printable"] = False
-        elif item.get("category") in {"PRINTABLE", "WHITE", "VARNISH"}:
-            item["is_printable"] = True
+
+        spots.append(item)
 
     printable_categories = {"PRINTABLE", "WHITE", "VARNISH"}
-    technical_spots = [i for i in spots if i.get("category") == "TECHNICAL"]
-    white_spots = [i for i in spots if i.get("category") == "WHITE"]
-    varnish_spots = [i for i in spots if i.get("category") == "VARNISH"]
+
+    technical_spots = [
+        i for i in spots
+        if i.get("category") == "TECHNICAL"
+    ]
+
+    white_spots = [
+        i for i in spots
+        if i.get("category") == "WHITE"
+    ]
+
+    varnish_spots = [
+        i for i in spots
+        if i.get("category") == "VARNISH"
+    ]
+
     printable_spots = [
         i for i in spots
         if i.get("category") in printable_categories
-        and not _gate0_is_non_printable_separation(i.get("original_name") or i.get("name") or "")
+        and not _gate0_is_non_printable_separation(
+            i.get("original_name") or i.get("name") or ""
+        )
     ]
 
-    inventory["spots"] = spots
-    inventory["technical_spots"] = technical_spots
-    inventory["white_spots"] = white_spots
-    inventory["varnish_spots"] = varnish_spots
-    inventory["printable_spots"] = printable_spots
-    inventory["technical_spot_count"] = len(technical_spots)
-    inventory["white_spot_count"] = len(white_spots)
-    inventory["varnish_spot_count"] = len(varnish_spots)
-    inventory["printable_spot_count"] = len(printable_spots)
-    inventory["printable_separation_count"] = len(printable_spots)
+    suspicious_spots = [
+        i for i in spots
+        if (
+            i.get("is_generic_suspicious")
+            or i.get("is_pantone_suspicious")
+        )
+        and not _gate0_is_non_printable_separation(
+            i.get("original_name") or i.get("name") or ""
+        )
+    ]
 
-    if "suspicious_spots" in inventory:
-        inventory["suspicious_spots"] = [
-            i for i in inventory["suspicious_spots"]
-            if not _gate0_is_non_printable_separation(i.get("original_name") or i.get("name") or "")
-        ]
+    process_count = 4
+    process_count_source = "ASSUMED_CMYK"
 
-    return inventory
+    return {
+        "spot_count": len(separations),
+        "process_count": process_count,
+        "process_count_source": process_count_source,
+        "printable_separation_count": len(printable_spots),
+        "printable_spot_count": len(printable_spots),
+        "white_spot_count": len(white_spots),
+        "technical_spot_count": len(technical_spots),
+        "varnish_spot_count": len(varnish_spots),
+        "spots": spots,
+        "white_spots": white_spots,
+        "technical_spots": technical_spots,
+        "varnish_spots": varnish_spots,
+        "printable_spots": printable_spots,
+        "suspicious_spots": suspicious_spots,
+        "duplicate_groups": group_equivalent_spots(separations),
+    }
+
+
 

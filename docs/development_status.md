@@ -1896,3 +1896,35 @@ No cambia:
 - Runtime Isolation.
 
 ---
+
+
+## Sprint 27C.5B — Consolidate spot_utils build_spot_inventory
+
+Se elimina duplicación remanente en `config/spot_utils.py`.
+
+Problema detectado en audit 27C.5:
+
+- `build_spot_inventory` existía dos veces.
+- La segunda definición envolvía a la primera mediante `_GATE0_ORIGINAL_BUILD_SPOT_INVENTORY`.
+- Python usaba la segunda definición activa, pero el patrón generaba deuda técnica y riesgo de mantenimiento.
+
+Corrección:
+
+- Se consolida `build_spot_inventory` en una sola función.
+- Se conserva la clasificación activa:
+  - spots imprimibles;
+  - blanco;
+  - barniz;
+  - separaciones técnicas/no imprimibles;
+  - exclusión de plano/material/técnicas del conteo operativo imprimible.
+- Se agregan pruebas de contrato para proteger definición única y conteo operativo.
+
+No cambia:
+
+- lógica activa de separación;
+- reglas de negocio;
+- Production Readiness;
+- dashboard;
+- Runtime Isolation.
+
+---
