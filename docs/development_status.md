@@ -1730,3 +1730,36 @@ No cambia:
 - Compare Engine.
 
 ---
+
+
+## Sprint 27C.2 — Consolidate gate0_check.py Single Definitions
+
+Se reduce deuda técnica en `gate0_check.py`.
+
+Problema:
+
+- Existían definiciones antiguas y nuevas de:
+  - `check_font_embedding`
+  - `check_rgb_objects`
+  - `check_high_tac`
+- La ejecución real ya usaba las versiones nuevas porque el `main` está al final.
+- Aun así, mantener funciones duplicadas generaba riesgo de editar una versión inactiva.
+
+Corrección:
+
+- Se eliminan las definiciones antiguas.
+- Se mantiene una sola definición activa para cada función.
+- Se agregan pruebas de contrato para proteger:
+  - definición única;
+  - orden antes del `main`;
+  - campos de evidencia enriquecida de RGB, TAC y fuentes.
+
+No cambia:
+
+- reglas de negocio;
+- severidades;
+- Production Readiness;
+- Runtime Isolation;
+- dashboard.
+
+---

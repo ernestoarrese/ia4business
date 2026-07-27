@@ -454,23 +454,6 @@ def detect_live_fonts(pdf_path):
     return fonts
 
 
-def check_font_embedding(live_fonts):
-    findings = []
-
-    for font in live_fonts:
-        findings.append({
-            "page": font.get("page", 1),
-            "check": "FONT_NOT_EMBEDDED",
-            "severity": "HIGH",
-            "detail": "Fuente no embebida detectada",
-            "value": f"{font.get('font_name')} | {font.get('font_type')}",
-            "recommendation": "Incrustar o convertir fuentes antes de liberar a producción."
-        })
-
-    return findings
-
-
-
 def check_small_text(page, page_number, warning_threshold_pt=5.0, critical_threshold_pt=4.0, max_findings=25):
     """
     Detecta texto vivo pequeño usando PyMuPDF page.get_text("dict").
@@ -530,38 +513,6 @@ def check_small_text(page, page_number, warning_threshold_pt=5.0, critical_thres
                     return findings
 
     return findings
-
-def check_rgb_objects(page_stream, page_number):
-    """
-    Detecta operadores RGB simples en content stream.
-    MVP:
-    - rg = RGB fill
-    - RG = RGB stroke
-    """
-
-    findings = []
-
-    rgb_patterns = [
-        (r"(\d*\.?\d+)\s+(\d*\.?\d+)\s+(\d*\.?\d+)\s+rg", "fill"),
-        (r"(\d*\.?\d+)\s+(\d*\.?\d+)\s+(\d*\.?\d+)\s+RG", "stroke")
-    ]
-
-    for pattern, mode in rgb_patterns:
-        for match in re.finditer(pattern, page_stream):
-            r, g, b = [float(x) for x in match.groups()]
-
-            findings.append({
-                "page": page_number,
-                "check": "RGB_OBJECT",
-                "severity": "MEDIUM",
-                "detail": f"Objeto RGB detectado ({mode})",
-                "value": f"RGB=({r}, {g}, {b})",
-                "recommendation": "Convertir RGB a CMYK o spot validado según perfil de impresión."
-            })
-
-    return findings
-
-
 
 def check_barcode_risk(page, page_number, minimum_image_dpi=300.0, critical_image_dpi=200.0, max_findings=20):
     """
@@ -752,27 +703,6 @@ def extract_cmyk_values_from_stream(page_stream):
             })
 
     return results
-
-
-def check_high_tac(page_stream, page_number, tac_limit=280):
-    findings = []
-
-    for item in extract_cmyk_values_from_stream(page_stream):
-        tac = item["tac"]
-        c, m, y, k = item["cmyk"]
-
-        if tac > tac_limit:
-            findings.append({
-                "page": page_number,
-                "check": "HIGH_TAC_RISK",
-                "severity": "HIGH",
-                "detail": f"Riesgo TAC alto en objeto CMYK ({item['mode']})",
-                "value": f"TAC={tac:.1f}% | CMYK=({c:.1f}, {m:.1f}, {y:.1f}, {k:.1f})",
-                "detected_tac": round(tac, 1),
-                "recommendation": f"Reducir carga total de tinta. Límite configurado: {tac_limit}%."
-            })
-
-    return findings
 
 
 def check_overprint_risk(doc):
