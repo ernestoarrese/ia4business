@@ -1763,3 +1763,37 @@ No cambia:
 - dashboard.
 
 ---
+
+
+## Sprint 27C.3 — Consolidate business_rules.py Single Definitions
+
+Se reduce deuda técnica en `business_rules.py`.
+
+Problema:
+
+- Existían definiciones antiguas y nuevas de:
+  - `evaluate_rgb_object`
+  - `evaluate_high_tac_risk`
+- Las versiones nuevas 25C eran las efectivas al final del módulo.
+- Mantener duplicados generaba riesgo de editar una función inactiva.
+
+Corrección:
+
+- Se eliminan las definiciones antiguas.
+- Se mantiene una sola definición activa por función.
+- Se agregan pruebas de contrato para proteger:
+  - definición única;
+  - RGB sin bbox como riesgo contextual;
+  - umbrales RGB 3% / 15%;
+  - TAC sin bbox como riesgo contextual;
+  - umbrales TAC por exceso.
+
+No cambia:
+
+- severidades;
+- umbrales;
+- Production Readiness;
+- Runtime Isolation;
+- dashboard.
+
+---

@@ -209,34 +209,6 @@ def outside_printable_area_business_result(finding, risk_area):
     return apply_business_fields(finding, "INFO", risk_area, reason, p, action, w)
 
 
-def evaluate_rgb_object(finding, profile):
-    area = float(finding.get("object_area_percent") or 0)
-    is_printable = finding.get("is_printable", True)
-    object_type = finding.get("object_type", "unknown")
-
-    rgb = profile.get("color", {}).get("rgb", {})
-    info_max = rgb.get("info_max_area_percent", 3.0)
-    critical_min = rgb.get("critical_min_area_percent", 15.0)
-    critical_types = rgb.get("critical_object_types", ["background", "gradient", "skin", "brand", "logo"])
-
-    if not is_printable:
-        sev = "INFO"
-        reason = "Objeto RGB detectado en elemento no imprimible."
-    elif object_type in critical_types or area >= critical_min:
-        sev = "CRITICAL"
-        reason = f"Objeto RGB imprimible con riesgo de conversión no controlada. Área {area:.2f}%."
-    elif area >= info_max:
-        sev = "WARNING"
-        reason = f"Objeto RGB imprimible de área media. Área {area:.2f}%."
-    else:
-        sev = "INFO"
-        reason = f"Objeto RGB imprimible de área pequeña. Área {area:.2f}%."
-
-    p, w = severity_meta(sev, {"CRITICAL": 35, "WARNING": 15, "INFO": 1})
-    return apply_business_fields(finding, sev, "Color / Separaciones", reason, p, "Convertir RGB a CMYK o spot validado según perfil.", w)
-
-
-
 def evaluate_barcode_risk(finding, profile):
     effective_dpi = float(finding.get("effective_dpi") or 0)
     minimum_dpi = float(finding.get("minimum_image_dpi") or 300)
@@ -379,26 +351,6 @@ def evaluate_font_not_embedded(finding, profile):
         "Incrustar o convertir fuentes antes de avanzar.",
         35
     )
-
-
-def evaluate_high_tac_risk(finding, profile):
-    detected = float(finding.get("detected_tac") or 0)
-    area = float(finding.get("object_area_percent") or 0)
-    max_tac = profile.get("tac", {}).get("max_tac_percent", 280)
-    excess = detected - max_tac
-
-    if excess <= 0:
-        sev = "PASS"
-    elif excess <= 20:
-        sev = "INFO" if area < 3 else "WARNING"
-    elif excess <= 40:
-        sev = "CRITICAL" if area >= 15 else "WARNING"
-    else:
-        sev = "CRITICAL"
-
-    p, w = severity_meta(sev, {"CRITICAL": 40, "WARNING": 20, "INFO": 1})
-    reason = f"TAC detectado {detected:.0f}% vs límite {max_tac:.0f}%. Exceso {max(excess, 0):.0f}%, área {area:.2f}%."
-    return apply_business_fields(finding, sev, "Carga de tinta / Impresión", reason, p, "Reducir TAC según estándar del proceso/sustrato.", w)
 
 
 def evaluate_overprint_risk(finding, profile):
