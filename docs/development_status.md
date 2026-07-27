@@ -1975,3 +1975,29 @@ No cambia:
 - compare engine.
 
 ---
+
+
+## Sprint 28B.2 — Compact selected risk detail labels
+
+Se compacta el copy del bloque `Detalle del riesgo`.
+
+Cambios:
+
+- `Tipo de riesgo` pasa a `Riesgo`.
+- `Área imprimible` pasa a `Área útil`.
+- `Umbral / criterio` pasa a `Criterio`.
+- `Por qué importa` pasa a `Impacto`.
+- `Qué hacer` pasa a `Acción sugerida`.
+- El empty state del detalle se orienta a prioridad, evidencia y acción sugerida.
+
+No cambia:
+
+- motor de análisis;
+- reglas de negocio;
+- Production Readiness;
+- evidencias;
+- separaciones;
+- runtime isolation;
+- compare engine.
+
+---

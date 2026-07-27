@@ -703,7 +703,7 @@
 
       <div class="card detail">
         <h3 class="section-title">Detalle del riesgo</h3>
-        <div id="riskDetail" class="empty">Selecciona un riesgo para ver comentario experto, evidencia e impacto.</div>
+        <div id="riskDetail" class="empty">Selecciona un riesgo para ver prioridad, evidencia y acción sugerida.</div>
       </div>
     
       <div class="feedback-box">
@@ -1528,7 +1528,7 @@ function renderRiskQualitySummary(r,insight){
       <div class="compact-details-body">
         <div class="risk-quality-grid compact">
           <div class="risk-quality-card">
-            <b>Tipo de riesgo</b>
+            <b>Riesgo</b>
             <div>${esc(riskTypeLabel(r))}</div>
           </div>
           <div class="risk-quality-card">
@@ -1540,11 +1540,11 @@ function renderRiskQualitySummary(r,insight){
             <div>${esc(riskScopeLabel(r))}</div>
           </div>
           <div class="risk-quality-card">
-            <b>Área imprimible</b>
+            <b>Área útil</b>
             <div>${esc(printableAreaLabel(r))}</div>
           </div>
           <div class="risk-quality-card">
-            <b>Umbral / criterio</b>
+            <b>Criterio</b>
             <div>${esc(thresholdLabel(r,insight))}</div>
           </div>
           <div class="risk-quality-card">
@@ -2025,12 +2025,12 @@ function selectRisk(i,occurrenceIndex=0){
         </div>
 
         <div class="info-box">
-          <b>Por qué importa</b>
+          <b>Impacto</b>
           <div>${esc(impactText)}</div>
         </div>
 
         <div class="info-box">
-          <b>Qué hacer</b>
+          <b>Acción sugerida</b>
           <div>${esc(actionText)}</div>
         </div>
       </div>
