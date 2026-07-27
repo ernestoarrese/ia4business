@@ -1749,30 +1749,21 @@ def save_report(report_data, output_dir="data/output"):
 
 def main():
     if len(sys.argv) < 2:
-        print("Uso: python gate0_check.py archivo.pdf")
+        print("Uso: python gate0_check.py archivo.pdf [output_dir]")
         sys.exit(1)
 
     pdf_path = sys.argv[1]
 
+    # Sprint 27B — Runtime Isolation v1
+    # Prefer explicit CLI output_dir, then env var, then legacy fallback.
+    output_dir = (
+        sys.argv[2]
+        if len(sys.argv) >= 3
+        else os.environ.get("GATE0_OUTPUT_DIR", "data/output")
+    )
+
     report = build_report(pdf_path)
-    json_path, csv_path = save_report(report)
-
-    print("\n===== GATE0 PACKAGING QA =====")
-    print(f"Archivo: {report['file']}")
-    print(f"Gate status: {report['gate_status']}")
-
-    readiness = report.get("readiness_assessment", {})
-    summary = report.get("readiness_summary", {})
-
-    print(f"Readiness score: {readiness.get('readiness_score')}")
-    print(f"Readiness status: {readiness.get('readiness_status')}")
-    print(f"Decision: {readiness.get('readiness_decision')}")
-    print(f"Headline: {summary.get('headline')}")
-    print(f"Reporte JSON: {json_path}")
-    print(f"Reporte CSV: {csv_path}")
-    print("================================\n")
-
-
+    json_path, csv_path = save_report(report, output_dir=output_dir)
 # ---------------------------------------------------------------------
 # Sprint 25C.1 — RGB_OBJECT Evidence Depth
 # ---------------------------------------------------------------------

@@ -417,8 +417,12 @@ def run_gate0_analysis(input_file_path, original_filename, client, session_id, i
 
     analysis_start = time.time()
 
+    # Sprint 27B — Runtime Isolation v1
+    # The legacy subprocess writes into a session-specific directory.
+    session_output_dir = REPORTS_DIR / session_id
+
     try:
-        data = orchestrator.run(paths["pdf"])
+        data = orchestrator.run(paths["pdf"], output_dir=session_output_dir)
     except Exception as exc:
         return HTMLResponse(
             f"<h1>Error ejecutando Gate0</h1><pre>{exc}</pre>",
@@ -427,7 +431,7 @@ def run_gate0_analysis(input_file_path, original_filename, client, session_id, i
 
     analysis_duration_seconds = round(time.time() - analysis_start, 2)
 
-    default_csv = ROOT / "data" / "output" / "gate0_report.csv"
+    session_csv = session_output_dir / "gate0_report.csv"
 
     data["file"] = original_filename or input_file_path.name
     data["client"] = client.strip() if client and client.strip() else "Sin cliente"
@@ -474,8 +478,8 @@ def run_gate0_analysis(input_file_path, original_filename, client, session_id, i
 
     append_analysis_history(data)
 
-    if default_csv.exists():
-        shutil.copy(default_csv, paths["csv"])
+    if session_csv.exists():
+        shutil.copy(session_csv, paths["csv"])
 
     return RedirectResponse(url=f"/dashboard/index.html?sid={session_id}", status_code=303)
 
