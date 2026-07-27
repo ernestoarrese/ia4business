@@ -1773,11 +1773,6 @@ def main():
     print("================================\n")
 
 
-if __name__ == "__main__":
-    main()
-
-
-
 # ---------------------------------------------------------------------
 # Sprint 25C.1 — RGB_OBJECT Evidence Depth
 # ---------------------------------------------------------------------
@@ -1944,3 +1939,11 @@ def check_font_embedding(live_fonts):
         })
 
     return findings
+
+
+# Sprint 27A.4.1 — main guard intentionally kept at EOF
+if __name__ == "__main__":
+    main()
+
+
+

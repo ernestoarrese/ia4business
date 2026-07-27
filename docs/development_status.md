@@ -1663,3 +1663,31 @@ Corrección:
 - Solo corrige arranque de la web.
 
 ---
+
+
+## Sprint 27A.4.1 — Runtime Function Order Guard
+
+Se recupera parte del hardening perdido del commit local `c735bd9`.
+
+Problema:
+
+- `gate0_check.py` tenía `if __name__ == "__main__"` antes de funciones redefinidas en sprints posteriores.
+- Los tests por import podían usar las versiones nuevas.
+- La ejecución real como script/subprocess podía usar versiones antiguas.
+
+Corrección:
+
+- Se mueve el guard `if __name__ == "__main__"` al final del archivo.
+- Se agrega prueba de contrato para evitar que vuelva a quedar antes de:
+  - `check_rgb_objects`
+  - `check_high_tac`
+  - `check_font_embedding`
+
+No cambia:
+
+- reglas de negocio;
+- severidades;
+- dashboard;
+- rutas runtime.
+
+---
