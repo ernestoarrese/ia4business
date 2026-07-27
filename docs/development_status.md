@@ -1928,3 +1928,27 @@ No cambia:
 - Runtime Isolation.
 
 ---
+
+
+## Sprint 28A — Product Validation Pass
+
+Se valida funcionalmente el flujo real después de la fase de limpieza técnica 27C.
+
+Validación realizada:
+
+- Landing `/` responde correctamente.
+- Upload/análisis PDF responde con redirect a dashboard.
+- Dashboard carga con `sid`.
+- `/api/report` responde correctamente.
+- `/api/pdf` responde correctamente.
+- `/api/risk-preview` responde correctamente.
+- El visor PDF y la evidencia visual siguen operativos.
+- Production Readiness, Top Risks y navegación de riesgo seleccionado siguen funcionando.
+
+Resultado:
+
+- La limpieza técnica no rompió el flujo principal.
+- Runtime Isolation sigue funcionando por sesión.
+- El producto queda estable para continuar con nuevos sprints de producto/UX.
+
+---
