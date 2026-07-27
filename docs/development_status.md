@@ -1797,3 +1797,35 @@ No cambia:
 - dashboard.
 
 ---
+
+
+## Sprint 27C.4A — PR2 Active Behavior Guardrails
+
+Se agregan pruebas de contrato antes de consolidar `readiness_summary.py`.
+
+Contexto:
+
+- `readiness_summary.py` conserva varias generaciones de `Production Readiness v2`.
+- La función activa es la última definición de `build_production_readiness_v2`.
+- La versión activa esperada es `v2_printable_area_priority`.
+- El helper `_pr2_printable_area_confidence_confirmed` debe ser estricto:
+  - `CONFIRMED` real permite tratar hallazgos fuera del área imprimible como contextuales.
+  - `UNCONFIRMED` no debe degradar riesgos efectivos.
+
+Se protege:
+
+- versión activa de PR2;
+- área imprimible confirmada fuera como nota contextual;
+- área imprimible no confirmada sin downgrade;
+- prioridad de sobreimpresión con blanco;
+- deduplicación de texto pequeño repetido.
+
+No cambia:
+
+- `readiness_summary.py`;
+- reglas de negocio;
+- severidades;
+- dashboard;
+- runtime isolation.
+
+---
