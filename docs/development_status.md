@@ -2001,3 +2001,35 @@ No cambia:
 - compare engine.
 
 ---
+
+
+## Sprint 28C.1 — Dashboard JS Guardrails
+
+Se agregan pruebas de contrato antes de limpiar duplicados JavaScript en `dashboard/index.html`.
+
+Contexto:
+
+- El dashboard funciona y `node --check` pasa.
+- El audit detectó nombres duplicados en JS.
+- Algunos duplicados son funciones top-level antiguas sobrescritas por versiones nuevas.
+- Otros son variables locales repetidas y no representan riesgo real.
+
+Se protege:
+
+- sintaxis JS del dashboard;
+- copy UX actual;
+- ausencia de copy redundante antiguo;
+- hooks de Production Readiness drilldown;
+- navegación visual de ocurrencias/zonas;
+- soporte inline de Separation Usage v2.
+
+No cambia:
+
+- dashboard productivo;
+- motor;
+- reglas de negocio;
+- Production Readiness;
+- Runtime Isolation;
+- Compare Engine.
+
+---
