@@ -2033,3 +2033,41 @@ No cambia:
 - Compare Engine.
 
 ---
+
+
+## Sprint 28C.2 — Remove obsolete dashboard JS duplicate definitions
+
+Se eliminan definiciones JavaScript antiguas duplicadas en `dashboard/index.html`.
+
+Problema:
+
+- El audit detectó funciones top-level duplicadas.
+- Python/JS usaba la última definición activa por sobrescritura.
+- Mantener versiones antiguas generaba riesgo de editar una función inactiva.
+
+Funciones consolidadas:
+
+- `bindProductionReadinessDrilldown`
+- `clampOccurrenceIndex`
+- `renderOccurrenceNav`
+- `renderSeparationUsageV2`
+- `riskDataForActiveOccurrence`
+- `selectProductionReadinessRisk`
+
+Se mantiene:
+
+- la última definición activa;
+- Production Readiness drilldown con `data-pr2-check` y `data-pr2-title`;
+- navegación visual por zonas/ocurrencias;
+- renderer compacto de Separation Usage v2.
+
+No se toca:
+
+- variables locales repetidas como `check`, `fromRisk`, `pushUnique` o `compact`;
+- motor de análisis;
+- reglas de negocio;
+- Production Readiness backend;
+- Runtime Isolation;
+- Compare Engine.
+
+---

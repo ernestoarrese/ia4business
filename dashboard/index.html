@@ -886,41 +886,6 @@ function findRiskIndexByCheck(check){
   });
 }
 
-function selectProductionReadinessRisk(check){
-  const idx=findRiskIndexByCheck(check);
-
-  if(idx<0){
-    console.warn("No se encontró Top Risk para Production Readiness item:",check);
-    return;
-  }
-
-  selectRisk(idx,0);
-
-  const riskEl=$("risk-"+idx);
-  if(riskEl){
-    riskEl.scrollIntoView({behavior:"smooth",block:"center"});
-  }
-
-  setTimeout(()=>{
-    const detail=$("riskDetail");
-    if(detail){
-      detail.scrollIntoView({behavior:"smooth",block:"start"});
-    }
-  },180);
-}
-
-function bindProductionReadinessDrilldown(root){
-  if(!root)return;
-
-  root.querySelectorAll("[data-pr2-check]").forEach(btn=>{
-    btn.addEventListener("click",()=>{
-      selectProductionReadinessRisk(btn.getAttribute("data-pr2-check"));
-    });
-  });
-}
-
-
-
 function inferCheckFromReadinessTitle(title){
   const t=String(title||"").toLowerCase();
 
@@ -949,44 +914,6 @@ function inferCheckFromReadinessTitle(title){
   }
 
   return "";
-}
-
-function selectProductionReadinessRisk(check,title){
-  const explicitCheck=normalizeCheckForDrilldown(check);
-  const inferredCheck=normalizeCheckForDrilldown(inferCheckFromReadinessTitle(title));
-  const target=explicitCheck||inferredCheck;
-
-  let idx=-1;
-
-  if(target){
-    idx=findRiskIndexByCheck(target);
-  }
-
-  if(idx<0 && inferredCheck){
-    idx=findRiskIndexByCheck(inferredCheck);
-  }
-
-  if(idx<0 && title && Array.isArray(currentRisks)){
-    const wanted=String(title||"").toLowerCase();
-    idx=currentRisks.findIndex(r=>{
-      const name=String(r?.title||displayName(r?.check)||"").toLowerCase();
-      return name.includes(wanted) || wanted.includes(name);
-    });
-  }
-
-  if(idx<0){
-    console.warn("No se encontró Top Risk para Production Readiness item:",{check,title,target});
-    return;
-  }
-
-  selectRisk(idx,0);
-
-  setTimeout(()=>{
-    const detail=$("riskDetail");
-    if(detail){
-      detail.scrollIntoView({behavior:"smooth",block:"start"});
-    }
-  },80);
 }
 
 function bindProductionReadinessDrilldown(root){
@@ -1224,54 +1151,10 @@ function riskOccurrences(r){
 }
 
 
-function clampOccurrenceIndex(r,index){
-  const total=riskOccurrences(r).length;
-  if(!total)return 0;
-  return Math.max(0,Math.min(Number(index||0),total-1));
-}
-
 function activeRiskOccurrence(r){
   const items=riskOccurrences(r);
   if(!items.length)return null;
   return items[clampOccurrenceIndex(r,currentOccurrenceIndex)];
-}
-
-function riskDataForActiveOccurrence(r){
-  const occ=activeRiskOccurrence(r);
-  if(!occ)return r;
-
-  const merged={...r,...occ};
-
-  // Keep grouped Top Risk identity while allowing occurrence-specific evidence.
-  merged.check=r.check;
-  merged.title=r.title;
-  merged.occurrence_count=r.occurrence_count;
-  merged.occurrences=r.occurrences;
-  merged.max_score_weight=r.max_score_weight;
-  merged.max_severity_score=r.max_severity_score;
-  merged.risk_evidence={...(r.risk_evidence||{}),...(occ.risk_evidence||{})};
-  merged.expert_insight=r.expert_insight;
-
-  return merged;
-}
-
-function renderOccurrenceNav(r){
-  const items=riskOccurrences(r);
-  if(items.length<=1)return "";
-
-  const idx=clampOccurrenceIndex(r,currentOccurrenceIndex);
-  const label=items[idx]?.sample_text||items[idx]?.value||items[idx]?.detail||"Ocurrencia seleccionada";
-
-  return `
-    <div class="occurrence-nav">
-      <button onclick="changeRiskOccurrence(-1)" ${idx<=0?"disabled":""}>← Anterior</button>
-      <div>
-        <div class="occurrence-counter">${esc(idx+1)} / ${esc(items.length)}</div>
-        <div class="occurrence-caption">${esc(label)}</div>
-      </div>
-      <button onclick="changeRiskOccurrence(1)" ${idx>=items.length-1?"disabled":""}>Siguiente →</button>
-    </div>
-  `;
 }
 
 function changeRiskOccurrence(delta){
@@ -2547,48 +2430,6 @@ if (typeof buildEvidenceItems === "function" && !window.__gate0_font_evidence_de
 
 
 // Sprint 26A — Separation Usage v2 Foundation dashboard render
-function renderSeparationUsageV2(data){
-  const box=$("separationSummary");
-  if(!box)return;
-
-  const usage=data?.separation_usage_v2;
-  if(!usage || !usage.version)return;
-
-  const summary=usage.summary||{};
-  const detected=summary.detected_separations ?? 0;
-  const withSignals=summary.separations_with_usage_signals ?? 0;
-  const withoutSignals=summary.separations_without_usage_signals ?? 0;
-  const tokenCount=summary.usage_token_count ?? 0;
-  const selectorCount=summary.colorspace_selector_count ?? 0;
-
-  const decisionLabel=usage.safe_for_operational_decision
-    ? "Puede apoyar decisión"
-    : "Informativo, no decisorio";
-
-  const bboxLabel=usage.can_compute_bbox_by_separation
-    ? "BBox por separación disponible"
-    : "Sin bbox por separación";
-
-  box.insertAdjacentHTML("beforeend",`
-    <div class="sep-usage-v2">
-      <b>Uso de separaciones v2</b>
-      <div>${esc(decisionLabel)}. No cambia el conteo operativo ni la decisión de liberación.</div>
-      <div class="sep-usage-v2-row">
-        <span class="sep-usage-v2-chip">${esc(detected)} separaciones</span>
-        <span class="sep-usage-v2-chip">${esc(withSignals)} con señales</span>
-        <span class="sep-usage-v2-chip">${esc(withoutSignals)} sin señal directa</span>
-        <span class="sep-usage-v2-chip">${esc(tokenCount)} tint ops</span>
-        <span class="sep-usage-v2-chip">${esc(selectorCount)} cs/CS</span>
-        <span class="sep-usage-v2-chip">${esc(bboxLabel)}</span>
-      </div>
-    </div>
-  `);
-}
-
-
-
-
-
 // Sprint 26A.3 — Compact copy for Separation Usage v2 and Production Readiness
 function renderSeparationUsageV2(data){
   const box=$("separationSummary");
