@@ -2071,3 +2071,35 @@ No se toca:
 - Compare Engine.
 
 ---
+
+
+## Sprint 28 — UX and Dashboard Stabilization Closure
+
+Se cierra la fase Sprint 28 enfocada en validación funcional, limpieza UX y estabilización del dashboard.
+
+Incluye:
+
+- Sprint 28A: Product Validation Pass.
+- Sprint 28B.1: compact dashboard risk copy.
+- Sprint 28B.2: compact selected risk detail copy.
+- Sprint 28C.1: dashboard JS guardrails.
+- Sprint 28C.2: eliminación de definiciones JavaScript obsoletas duplicadas.
+
+Resultado:
+
+- Dashboard validado funcionalmente.
+- Copy principal más claro y consistente.
+- Production Readiness drilldown protegido.
+- Navegación visual por zonas/ocurrencias protegida.
+- Separation Usage v2 inline protegido.
+- JavaScript del dashboard con guardrails antes y después de limpieza.
+- Sin cambios en motor, reglas de negocio, Production Readiness backend, Runtime Isolation o Compare Engine.
+
+Estado de cierre esperado:
+
+- `node --check` OK.
+- `pytest` OK.
+- repo limpio después del commit.
+- backup final creado.
+
+---
