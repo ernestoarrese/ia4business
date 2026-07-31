@@ -2409,3 +2409,44 @@ No cambia:
 - selector de perfiles.
 
 ---
+
+
+## Sprint 29B.4 — Production Context UI Compact
+
+Se ajusta la visualización del contexto productivo en dashboard sin agregar un bloque redundante.
+
+Decisión de producto:
+
+- No se crea una nueva sección grande.
+- Se reutiliza el chip y panel existente de perfil.
+- Se muestra solo información necesaria para decisión.
+
+Cambios:
+
+- `Perfil usado` cambia a `Perfil productivo`.
+- El chip prioriza `production_readiness_v2.operational_context.profile_context_label`.
+- El panel de perfil queda compacto:
+  - statement del contexto productivo;
+  - estado del contrato;
+  - TAC máximo;
+  - DPI mínimo;
+  - separaciones normales.
+- Solo se muestran campos faltantes si el contrato del perfil está incompleto.
+
+No se muestran en el panel compacto:
+
+- texto pequeño;
+- estado interno extendido;
+- source técnico cuando no aporta a la decisión;
+- todos los thresholds;
+- información duplicada del hero o de Production Readiness.
+
+No cambia:
+
+- scoring;
+- reglas de severidad;
+- Production Readiness logic;
+- Compare Engine;
+- selector de perfiles.
+
+---

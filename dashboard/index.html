@@ -634,6 +634,10 @@
 .sep-usage-v2 div{
   font-size:12px;
 }
+.compact-profile-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+
 
 </style>
 </head>
@@ -669,7 +673,7 @@
           <div><b>Cliente</b><span id="client">-</span></div>
           <div><b>Proceso</b><span id="process">-</span></div>
           <div><b>Páginas</b><span id="pages">-</span></div>
-          <div class="profile-chip" onclick="toggleOperationalProfile()"><div><b>Perfil usado</b><span id="profileName">-</span></div><small>▼</small></div>
+          <div class="profile-chip" onclick="toggleOperationalProfile()"><div><b>Perfil productivo</b><span id="profileName">-</span></div><small>▼</small></div>
         </div>
       </div>
 
@@ -784,61 +788,63 @@ function renderOperationalProfile(data){
   const panel=$("operationalProfile");
   const profileName=$("profileName");
 
+  const readinessContext=data.production_readiness_v2?.operational_context||{};
   const op=data.operational_profile||data.business_assessment?.operational_profile||{};
+  const ctx=Object.keys(readinessContext).length?readinessContext:op;
+  const thresholds=ctx.key_thresholds||ctx.profile_thresholds||{};
+
+  const contextLabel=
+    ctx.profile_context_label||
+    op.profile_context_label||
+    [ctx.process||op.process,ctx.substrate_family||op.substrate_family].filter(Boolean).join(" / ")||
+    ctx.profile_name||
+    op.profile_name||
+    "-";
 
   if(profileName){
-    profileName.textContent=op.profile_name||"-";
+    profileName.textContent=contextLabel;
   }
 
   if(!panel)return;
 
-  if(!Object.keys(op).length){
-    panel.innerHTML='<div class="empty">No se encontró perfil operativo en el reporte.</div>';
+  if(!Object.keys(ctx).length && !Object.keys(op).length){
+    panel.innerHTML='<div class="empty">No se encontró perfil productivo en el reporte.</div>';
     return;
   }
 
-  const status=op.profile_status||"-";
-  const fileFound=op.profile_file_found;
-  const sourceNote=fileFound===false
-    ? "Gate0 usó un fallback explícito porque no encontró archivo de perfil."
-    : "Perfil cargado desde configuración operativa versionada.";
+  const contractValid=ctx.profile_contract_valid ?? op.profile_contract_valid;
+  const contractLabel=contractValid===false?"Revisar configuración":contractValid===true?"Válido":"No informado";
+  const missing=ctx.profile_contract_missing_fields||op.profile_contract_missing_fields||[];
+  const tac=thresholds.tac_max_percent ?? ctx.tac_max_percent ?? op.tac_max_percent ?? "-";
+  const dpi=thresholds.image_minimum_dpi ?? ctx.image_minimum_dpi ?? op.image_minimum_dpi ?? "-";
+  const sepNormal=thresholds.separation_normal_max_printable ?? ctx.separation_normal_max_printable ?? op.separation_normal_max_printable ?? "-";
+  const statement=ctx.context_statement||`Evaluado contra perfil productivo ${contextLabel}.`;
+
+  const missingHtml=(contractValid===false && Array.isArray(missing) && missing.length)
+    ? `<div class="profile-note">Campos por revisar: ${esc(missing.slice(0,4).join(", "))}${missing.length>4?"…":""}</div>`
+    : "";
 
   panel.innerHTML=`
-    <div class="profile-grid">
+    <div class="profile-note">${esc(statement)}</div>
+    <div class="profile-grid compact-profile-grid">
       <div class="profile-item">
-        <b>Perfil</b>
-        <span>${esc(op.profile_name||"-")}</span>
+        <b>Contrato</b>
+        <span class="profile-status">${esc(contractLabel)}</span>
       </div>
       <div class="profile-item">
-        <b>Estado</b>
-        <span class="profile-status">${esc(status)}</span>
+        <b>TAC máx.</b>
+        <span>${esc(tac)}%</span>
       </div>
       <div class="profile-item">
-        <b>Proceso</b>
-        <span>${esc(op.process||"-")}</span>
+        <b>DPI mín.</b>
+        <span>${esc(dpi)}</span>
       </div>
       <div class="profile-item">
-        <b>Sustrato</b>
-        <span>${esc(op.substrate_family||"-")}</span>
-      </div>
-      <div class="profile-item">
-        <b>TAC máximo</b>
-        <span>${esc(op.tac_max_percent??"-")}%</span>
-      </div>
-      <div class="profile-item">
-        <b>Texto pequeño</b>
-        <span>WARNING &lt; ${esc(op.small_text_warning_threshold_pt??"-")} pt · CRITICAL &lt; ${esc(op.small_text_critical_threshold_pt??"-")} pt</span>
-      </div>
-      <div class="profile-item">
-        <b>DPI imagen</b>
-        <span>Mín. ${esc(op.image_minimum_dpi??"-")} · Rec. ${esc(op.image_recommended_dpi??"-")}</span>
-      </div>
-      <div class="profile-item">
-        <b>Separaciones</b>
-        <span>Normal ≤ ${esc(op.separation_normal_max_printable??"-")} · Warning ≤ ${esc(op.separation_warning_max_printable??"-")}</span>
+        <b>Separaciones normales</b>
+        <span>≤ ${esc(sepNormal)}</span>
       </div>
     </div>
-    <div class="profile-note">${esc(sourceNote)}</div>
+    ${missingHtml}
   `;
 }
 
