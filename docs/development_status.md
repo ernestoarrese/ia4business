@@ -2541,3 +2541,63 @@ Próximo sprint:
 - Sprint 30A.2 — Shareable Report Presenter.
 
 ---
+
+
+## Sprint 30A.3 — Printable Report Route
+
+Se agrega una ruta HTML imprimible para reporte ejecutivo.
+
+Nueva ruta:
+
+- `/report/print?sid=...`
+
+Flujo:
+
+- recibe `sid`;
+- valida formato de sesión;
+- carga `gate0_report.json`;
+- construye resumen con `build_shareable_report_summary(report_data)`;
+- renderiza HTML ejecutivo imprimible.
+
+Contenido:
+
+- decisión;
+- score;
+- archivo;
+- cliente;
+- páginas;
+- perfil productivo;
+- contexto productivo compacto;
+- top 3 riesgos;
+- acción recomendada;
+- limitaciones.
+
+Protecciones:
+
+- `sid` inválido devuelve error controlado;
+- reporte inexistente/expirado devuelve error controlado;
+- JSON corrupto devuelve error controlado;
+- no muestra traceback técnico al usuario.
+
+No incluye:
+
+- visor PDF;
+- feedback;
+- JSON completo;
+- evidencia visual completa;
+- tabla técnica completa;
+- dashboard duplicado.
+
+No cambia todavía:
+
+- dashboard;
+- botón de reporte;
+- PDF export nativo;
+- scoring;
+- reglas de severidad.
+
+Próximo sprint:
+
+- Sprint 30A.4 — Dashboard Report Button.
+
+---

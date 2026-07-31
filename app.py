@@ -20,6 +20,7 @@ from gate0.services.zip_inventory_service import ZIPInventoryService
 from gate0.services.separation_intelligence_service import SeparationIntelligenceService
 from gate0.services.comparison_service import ComparisonService
 from gate0.services.compare_executive_presenter import build_compare_executive_summary
+from gate0.services.shareable_report_presenter import build_shareable_report_summary
 from gate0_orchestrator import Gate0Orchestrator
 from gate0.agents.inspection_agent import InspectionAgent
 
@@ -997,6 +998,207 @@ def get_risk_preview(sid: str, page: int = 1, bbox: str = ""):
             doc.close()
         except Exception:
             pass
+
+
+
+# Sprint 30A.3 — Printable executive report route
+def _is_valid_report_session_id(value):
+    value = str(value or "").strip()
+    return len(value) == 32 and all(ch in "0123456789abcdef" for ch in value.lower())
+
+
+def _load_report_data_for_print(sid):
+    cleanup_old_runtime_files()
+
+    sid = str(sid or "").strip()
+
+    if not _is_valid_report_session_id(sid):
+        raise HTTPException(status_code=400, detail="sid inválido para reporte.")
+
+    paths = session_paths(sid)
+    report_path = paths["json"]
+
+    if not report_path.exists():
+        raise HTTPException(status_code=404, detail="Reporte no encontrado o expirado.")
+
+    try:
+        with report_path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Reporte inválido o corrupto.")
+
+
+def _shareable_report_status_class(status):
+    status = str(status or "").upper()
+
+    if status in {"READY", "READY_WITH_NOTES"}:
+        return "ok"
+    if status in {"NO_GO", "HIGH_RISK"}:
+        return "risk"
+    return "review"
+
+
+def _render_printable_report_html(summary):
+    summary = summary or {}
+    context = summary.get("operational_context") or {}
+    top_risks = summary.get("top_risks") or []
+    limitations = summary.get("limitations") or []
+
+    status_class = _shareable_report_status_class(summary.get("status"))
+
+    risk_cards = ""
+
+    for risk in top_risks[:3]:
+        risk_cards += f"""
+        <article class="risk-card">
+          <div class="risk-top">
+            <span class="pill">{html.escape(str(risk.get("severity", "INFO")))}</span>
+            <h3>{html.escape(str(risk.get("title", "Riesgo sin título")))}</h3>
+          </div>
+          <p>{html.escape(str(risk.get("reason", "Sin detalle.")))}</p>
+          <p><b>Acción:</b> {html.escape(str(risk.get("action", "Revisar técnicamente antes de liberar.")))}</p>
+        </article>
+        """
+
+    if not risk_cards:
+        risk_cards = """
+        <article class="risk-card">
+          <div class="risk-top">
+            <span class="pill">OK</span>
+            <h3>Sin riesgos prioritarios</h3>
+          </div>
+          <p>No se detectaron riesgos prioritarios en el resumen ejecutivo disponible.</p>
+        </article>
+        """
+
+    limitation_items = "".join(
+        f"<li>{html.escape(str(item))}</li>"
+        for item in limitations[:4]
+    ) or "<li>Gate0 no reemplaza el criterio final de preprensa.</li>"
+
+    contract_valid = context.get("profile_contract_valid")
+    contract_label = (
+        "Válido"
+        if contract_valid is True
+        else "Revisar configuración"
+        if contract_valid is False
+        else "No informado"
+    )
+
+    return f"""<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Gate0 — Reporte ejecutivo</title>
+<style>
+:root{{color-scheme:light}}
+body{{margin:0;background:#f6f7fb;color:#111827;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}}
+.page{{width:min(920px,94vw);margin:28px auto;background:#fff;border:1px solid #e5e7eb;border-radius:24px;padding:30px;box-shadow:0 18px 48px rgba(15,23,42,.08)}}
+.header{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:1px solid #e5e7eb;padding-bottom:18px;margin-bottom:20px}}
+.brand small,.muted{{color:#667085}}
+h1{{margin:0;font-size:28px;letter-spacing:-.04em}}
+h2{{font-size:16px;margin:26px 0 10px;text-transform:uppercase;letter-spacing:.08em;color:#667085}}
+h3{{margin:0;font-size:18px}}
+.actions{{display:flex;gap:10px}}
+.actions button,.actions a{{border:0;background:#111827;color:#fff;text-decoration:none;border-radius:999px;padding:10px 14px;font-weight:800;cursor:pointer}}
+.summary{{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}}
+.decision-card,.metric,.risk-card,.note{{border:1px solid #e5e7eb;border-radius:18px;padding:16px;background:#fff}}
+.badge{{display:inline-block;border-radius:999px;padding:7px 11px;font-weight:900}}
+.badge.ok{{background:#ecfdf3;color:#027a48}}
+.badge.review{{background:#fffbeb;color:#92400e}}
+.badge.risk{{background:#fef3f2;color:#b42318}}
+.score{{font-size:46px;font-weight:950;line-height:1;margin-top:8px}}
+.grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}}
+.metric small{{display:block;color:#667085;font-weight:800;margin-bottom:5px}}
+.metric b{{font-size:18px}}
+.risk-list{{display:grid;gap:12px}}
+.risk-top{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}
+.pill{{display:inline-block;background:#f2f4f7;color:#344054;border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900}}
+ul{{margin:8px 0 0;padding-left:20px}}
+.footer{{margin-top:24px;color:#667085;font-size:12px;border-top:1px solid #e5e7eb;padding-top:14px}}
+@media print{{
+  body{{background:#fff}}
+  .page{{width:auto;margin:0;border:0;border-radius:0;box-shadow:none}}
+  .actions{{display:none}}
+}}
+</style>
+</head>
+<body>
+<main class="page">
+  <section class="header">
+    <div class="brand">
+      <small>Gate0 Packaging QA</small>
+      <h1>Reporte ejecutivo</h1>
+      <div class="muted">{html.escape(str(summary.get("analyzed_at", "-")))}</div>
+    </div>
+    <div class="actions">
+      <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+      <a href="/">Nuevo análisis</a>
+    </div>
+  </section>
+
+  <section class="summary">
+    <div class="decision-card">
+      <span class="badge {status_class}">{html.escape(str(summary.get("status_label", "No informado")))}</span>
+      <h2>Decisión</h2>
+      <h3>{html.escape(str(summary.get("decision_label", "No informado")))}</h3>
+      <p>{html.escape(str(summary.get("answer", "-")))}</p>
+      <p class="muted">{html.escape(str(summary.get("main_reason", "-")))}</p>
+    </div>
+    <div class="decision-card">
+      <span class="muted">Readiness Score</span>
+      <div class="score">{html.escape(str(summary.get("score", "-")))}<small>/100</small></div>
+    </div>
+  </section>
+
+  <h2>Archivo</h2>
+  <section class="grid">
+    <div class="metric"><small>Archivo</small><b>{html.escape(str(summary.get("file", "-")))}</b></div>
+    <div class="metric"><small>Cliente</small><b>{html.escape(str(summary.get("client", "Sin cliente")))}</b></div>
+    <div class="metric"><small>Páginas</small><b>{html.escape(str(summary.get("pages", "-")))}</b></div>
+    <div class="metric"><small>Perfil productivo</small><b>{html.escape(str(context.get("profile_context_label", "No informado")))}</b></div>
+  </section>
+
+  <h2>Contexto productivo</h2>
+  <section class="grid">
+    <div class="metric"><small>Contrato</small><b>{html.escape(contract_label)}</b></div>
+    <div class="metric"><small>TAC máx.</small><b>{html.escape(str(context.get("tac_max_percent", "-")))}%</b></div>
+    <div class="metric"><small>DPI mín.</small><b>{html.escape(str(context.get("image_minimum_dpi", "-")))}</b></div>
+    <div class="metric"><small>Separaciones normales</small><b>≤ {html.escape(str(context.get("separation_normal_max_printable", "-")))}</b></div>
+  </section>
+  <p class="muted">{html.escape(str(context.get("context_statement", "")))}</p>
+
+  <h2>Qué revisar primero</h2>
+  <section class="risk-list">
+    {risk_cards}
+  </section>
+
+  <h2>Acción recomendada</h2>
+  <section class="note">
+    <p>{html.escape(str(summary.get("recommended_action", "Revisar técnicamente antes de liberar.")))}</p>
+  </section>
+
+  <h2>Limitaciones</h2>
+  <section class="note">
+    <ul>{limitation_items}</ul>
+  </section>
+
+  <div class="footer">
+    Reporte ejecutivo generado desde Gate0. El detalle técnico y evidencia visual permanecen en el dashboard.
+  </div>
+</main>
+</body>
+</html>"""
+
+
+@app.get("/report/print", response_class=HTMLResponse)
+def printable_report(sid: str = ""):
+    report_data = _load_report_data_for_print(sid)
+    summary = build_shareable_report_summary(report_data)
+    return HTMLResponse(_render_printable_report_html(summary))
+
+
 
 @app.get("/api/report")
 def get_report(sid: str):
