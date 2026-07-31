@@ -2103,3 +2103,43 @@ Estado de cierre esperado:
 - backup final creado.
 
 ---
+
+
+## Sprint 28D — Codex Working Protocol for Gate0
+
+Se prepara el repositorio para trabajar con Codex de manera segura.
+
+Entregables:
+
+- AGENTS.md con reglas de trabajo para agentes.
+- docs/codex/gate0_codex_prompt.md con prompt base para Codex.
+- Pruebas de contrato para proteger que el protocolo incluya:
+  - flujo seguro;
+  - validación con tests;
+  - protección del dashboard;
+  - protección de reglas de negocio;
+  - protección de Runtime Isolation;
+  - política audit-first para la primera tarea Codex.
+
+Objetivo:
+
+- Usar Codex como apoyo de ingeniería, no como piloto automático.
+- Empezar con tareas de auditoría antes de permitir cambios.
+- Mantener el flujo Gate0:
+  - status;
+  - diff;
+  - tests;
+  - commit;
+  - push;
+  - backup.
+
+No cambia:
+
+- motor de análisis;
+- dashboard;
+- reglas de negocio;
+- Production Readiness;
+- Compare Engine;
+- Runtime Isolation.
+
+---
