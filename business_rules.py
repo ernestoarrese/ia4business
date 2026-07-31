@@ -65,12 +65,105 @@ def load_profile(profile_path="profiles/flexo_pet_bopp_default.json"):
     return profile
 
 
+PRODUCTION_PROFILE_CONTRACT_VERSION = "production_profile_contract_v1"
+
+REQUIRED_PRODUCTION_PROFILE_FIELDS = [
+    "profile_name",
+    "profile_version",
+    "profile_status",
+    "process",
+    "substrate_family",
+    "tac.max_tac_percent",
+    "image_resolution.minimum_dpi",
+    "image_resolution.recommended_dpi",
+    "separations.normal_max_printable",
+    "separations.warning_max_printable",
+    "separations.critical_above_printable",
+    "small_text.warning_threshold_pt",
+    "small_text.critical_threshold_pt",
+]
+
+
+def _profile_get(profile, dotted_path):
+    current = profile
+
+    for part in str(dotted_path).split("."):
+        if not isinstance(current, dict):
+            return None
+        current = current.get(part)
+
+    return current
+
+
+def validate_operational_profile(profile):
+    """
+    Validate minimum Production Profile contract.
+
+    This does not change scoring.
+    It only exposes whether the loaded profile has the minimum fields
+    Gate0 needs to explain the production context used in the analysis.
+    """
+    profile = profile if isinstance(profile, dict) else {}
+
+    missing_fields = []
+
+    for field in REQUIRED_PRODUCTION_PROFILE_FIELDS:
+        value = _profile_get(profile, field)
+
+        if value is None or value == "":
+            missing_fields.append(field)
+
+    return {
+        "contract_version": PRODUCTION_PROFILE_CONTRACT_VERSION,
+        "is_valid": len(missing_fields) == 0,
+        "required_fields": list(REQUIRED_PRODUCTION_PROFILE_FIELDS),
+        "missing_fields": missing_fields,
+    }
+
+
+def build_production_profile_contract(profile):
+    """
+    Build an explicit product-facing contract for the active operational profile.
+
+    The goal is traceability:
+    Gate0 should always be able to say which production context was used.
+    """
+    profile = profile if isinstance(profile, dict) else {}
+    validation = validate_operational_profile(profile)
+
+    return {
+        "contract_version": validation["contract_version"],
+        "is_valid": validation["is_valid"],
+        "required_fields": validation["required_fields"],
+        "missing_fields": validation["missing_fields"],
+        "profile_name": profile.get("profile_name"),
+        "profile_version": profile.get("profile_version"),
+        "profile_status": profile.get("profile_status"),
+        "profile_source": profile.get("profile_source"),
+        "profile_file_found": profile.get("profile_file_found"),
+        "process": profile.get("process"),
+        "substrate_family": profile.get("substrate_family"),
+        "context_label": f"{profile.get('process', 'unknown')} / {profile.get('substrate_family', 'unknown')}",
+        "thresholds": {
+            "tac_max_percent": _profile_get(profile, "tac.max_tac_percent"),
+            "image_minimum_dpi": _profile_get(profile, "image_resolution.minimum_dpi"),
+            "image_recommended_dpi": _profile_get(profile, "image_resolution.recommended_dpi"),
+            "separation_normal_max_printable": _profile_get(profile, "separations.normal_max_printable"),
+            "separation_warning_max_printable": _profile_get(profile, "separations.warning_max_printable"),
+            "separation_critical_above_printable": _profile_get(profile, "separations.critical_above_printable"),
+            "small_text_warning_threshold_pt": _profile_get(profile, "small_text.warning_threshold_pt"),
+            "small_text_critical_threshold_pt": _profile_get(profile, "small_text.critical_threshold_pt"),
+        },
+    }
+
+
 def summarize_operational_profile(profile):
     small_text = profile.get("small_text", {}) if isinstance(profile, dict) else {}
     tac = profile.get("tac", {}) if isinstance(profile, dict) else {}
     image_resolution = profile.get("image_resolution", {}) if isinstance(profile, dict) else {}
     separations = profile.get("separations", {}) if isinstance(profile, dict) else {}
     barcode = profile.get("barcode", {}) if isinstance(profile, dict) else {}
+    profile_contract = build_production_profile_contract(profile)
 
     return {
         "profile_name": profile.get("profile_name"),
@@ -89,7 +182,12 @@ def summarize_operational_profile(profile):
         "separation_warning_max_printable": separations.get("warning_max_printable"),
         "separation_critical_above_printable": separations.get("critical_above_printable"),
         "barcode_image_minimum_dpi": barcode.get("minimum_image_dpi", 300),
-        "barcode_image_critical_dpi": barcode.get("critical_image_dpi", 200)
+        "barcode_image_critical_dpi": barcode.get("critical_image_dpi", 200),
+        "production_profile_contract": profile_contract["contract_version"],
+        "profile_contract_valid": profile_contract["is_valid"],
+        "profile_contract_missing_fields": profile_contract["missing_fields"],
+        "profile_context_label": profile_contract["context_label"],
+        "profile_thresholds": profile_contract["thresholds"],
     }
 
 
