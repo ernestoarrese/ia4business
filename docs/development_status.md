@@ -2505,3 +2505,39 @@ Próximo bloque recomendado:
 - Sprint 30A — Reporte Compartible v1.
 
 ---
+
+
+## Sprint 30A.1 — Shareable Report Audit
+
+Se audita el estado actual para crear un reporte compartible.
+
+Hallazgos:
+
+- Gate0 ya tiene `report_data` completo.
+- Ya existen `/api/report` y `/api/pdf`.
+- El dashboard ya consume el reporte por `sid`.
+- `production_readiness_v2` ya contiene decisión ejecutiva.
+- `operational_context` ya contiene perfil productivo, contrato y thresholds clave.
+- No existe todavía una ruta imprimible o compartible.
+
+Decisión:
+
+- Crear primero un reporte HTML imprimible.
+- No generar PDF todavía.
+- No duplicar el dashboard.
+- No mostrar todos los hallazgos técnicos.
+
+Contenido objetivo:
+
+- decisión;
+- score;
+- perfil productivo;
+- top 3 riesgos;
+- acción recomendada;
+- limitaciones.
+
+Próximo sprint:
+
+- Sprint 30A.2 — Shareable Report Presenter.
+
+---
