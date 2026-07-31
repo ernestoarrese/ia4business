@@ -2173,3 +2173,37 @@ No cambia:
 - Runtime Isolation.
 
 ---
+
+
+## Sprint 29A.2 — Compare Engine Integrity
+
+Se conecta la extracción real de separaciones al `InspectionEngine`.
+
+Contexto:
+
+- `ComparisonService` ya compara `InspectionResult.separations`.
+- `InspectionResult` ya tenía campo `separations`.
+- `InspectionEngine` no llenaba ese campo, por lo que `/compare-candidate` podía comparar `[]` vs `[]`.
+
+Cambios:
+
+- Se agrega `gate0/services/separation_extraction_service.py`.
+- El servicio delega en `gate0_check.detect_separations`, que es el parser maduro existente.
+- `InspectionEngine.inspect()` ahora llena `InspectionResult.separations`.
+- `pdf_structure` agrega `separation_count`.
+- `metadata` agrega `separation_extraction_status`.
+- Se agregan pruebas para:
+  - delegación al parser actual;
+  - conexión real `InspectionEngine -> InspectionResult.separations`;
+  - falla controlada de extracción sin romper inspección.
+
+No cambia:
+
+- lógica de clasificación de separaciones;
+- reglas de Spot Color Risk;
+- reglas de Separation Count Risk;
+- Compare Engine scoring;
+- endpoint `/compare-candidate`;
+- dashboard principal.
+
+---

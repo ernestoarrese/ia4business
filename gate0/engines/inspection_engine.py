@@ -15,6 +15,7 @@ from pathlib import Path
 import fitz
 
 from gate0.models.inspection_result import InspectionResult
+from gate0.services.separation_extraction_service import extract_pdf_separations
 
 
 class InspectionEngine:
@@ -74,9 +75,23 @@ class InspectionEngine:
                 "font_count": len(live_fonts),
             }
 
+        separations = []
+
+        try:
+            separations = extract_pdf_separations(input_file)
+            metadata["separation_extraction_status"] = "EVALUATED"
+            metadata["separation_extraction_source"] = "gate0_check.detect_separations"
+        except Exception as exc:
+            separations = []
+            metadata["separation_extraction_status"] = "FAILED"
+            metadata["separation_extraction_error"] = str(exc)
+
+        pdf_structure["separation_count"] = len(separations)
+
         return InspectionResult(
             file=str(input_file),
             pages=pages,
+            separations=separations,
             page_boxes=page_boxes,
             pdf_structure=pdf_structure,
             live_fonts=live_fonts,
