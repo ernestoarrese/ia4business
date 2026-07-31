@@ -2278,3 +2278,49 @@ No cambia:
 - Production Readiness.
 
 ---
+
+
+## Sprint 29A — Compare Engine v2 Closure
+
+Se cierra la fase Sprint 29A enfocada en robustecer el Compare Engine.
+
+Incluye:
+
+- Sprint 29A.1: guardrails contra falsos OK.
+- Sprint 29A.2: conexión de `InspectionEngine` con separaciones reales.
+- Sprint 29A.3: seguridad de rutas en `/compare-candidate`.
+- Sprint 29A.4: presenter ejecutivo para comparación.
+- Sprint 29A.5: validación funcional y cierre.
+
+Resultado:
+
+- El Compare Engine ya no interpreta datos ausentes como coincidencia confirmada.
+- Las diferencias de tamaño se evalúan en todas las páginas disponibles.
+- Las separaciones reales alimentan `InspectionResult.separations`.
+- `/compare-candidate` valida sesión, ruta, extensión y pertenencia al runtime permitido.
+- La página de comparación presenta:
+  - decisión;
+  - score;
+  - confianza;
+  - cobertura;
+  - top diferencias;
+  - checks no evaluados;
+  - siguiente acción;
+  - limitación explícita de comparación estructural;
+  - tabla técnica.
+
+Limitación vigente:
+
+- La comparación sigue siendo estructural.
+- No valida equivalencia visual píxel a píxel.
+- No confirma posición exacta de todos los objetos del arte.
+- No reemplaza revisión humana de preprensa.
+
+Estado esperado de cierre:
+
+- `python -m pytest -q` OK.
+- validación visual de `/compare-candidate` OK.
+- repo limpio después del commit.
+- backup final creado.
+
+---
