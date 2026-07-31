@@ -19,6 +19,7 @@ from gate0.services.runtime_service import RuntimeService
 from gate0.services.zip_inventory_service import ZIPInventoryService
 from gate0.services.separation_intelligence_service import SeparationIntelligenceService
 from gate0.services.comparison_service import ComparisonService
+from gate0.services.compare_executive_presenter import build_compare_executive_summary
 from gate0_orchestrator import Gate0Orchestrator
 from gate0.agents.inspection_agent import InspectionAgent
 
@@ -671,12 +672,38 @@ async def compare_candidate(
     right = inspection_agent.inspect(pdf_path)
 
     result = comparison_service.compare_inspection_results(left, right)
+    executive = build_compare_executive_summary(result)
 
     status_class = {
         "OK": "ok",
         "REVIEW_REQUIRED": "review",
         "HIGH_RISK": "risk",
     }.get(result.overall_status, "review")
+
+    difference_cards = ""
+    for item in executive.get("top_differences", []):
+        difference_cards += f"""
+        <div class="exec-card">
+          <small>{html.escape(str(item.get("status", "")))}</small>
+          <b>{html.escape(str(item.get("title", "")))}</b>
+          <p>{html.escape(str(item.get("detail", "")))}</p>
+          <p><b>Acción:</b> {html.escape(str(item.get("action", "")))}</p>
+        </div>
+        """
+
+    if not difference_cards:
+        difference_cards = """
+        <div class="exec-card">
+          <small>OK</small>
+          <b>Sin diferencias prioritarias</b>
+          <p>No se detectaron diferencias estructurales relevantes en los checks disponibles.</p>
+        </div>
+        """
+
+    not_evaluated_items = "".join(
+        f"<li><b>{html.escape(str(item.get('title', '')))}</b>: {html.escape(str(item.get('detail', '')))}</li>"
+        for item in executive.get("not_evaluated_items", [])
+    ) or "<li>Todos los checks disponibles fueron evaluados.</li>"
 
     rows = ""
     for check in result.checks:
@@ -730,6 +757,12 @@ th{{color:#667085;text-transform:uppercase;font-size:12px;letter-spacing:.08em}}
 .pill.review{{background:#fffbeb;color:#92400e}}
 .pill.risk{{background:#fef3f2;color:#b42318}}
 .warning{{background:#fffbeb;border:1px solid #fde68a;border-radius:16px;padding:14px;margin-top:18px;color:#92400e}}
+.executive-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px}}
+.exec-card{{border:1px solid #e5e7eb;border-radius:18px;padding:16px;background:#fff}}
+.exec-card small{{display:block;color:#667085;font-weight:900;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}}
+.exec-card b{{display:block;font-size:18px;margin-bottom:6px}}
+.exec-card p{{margin:6px 0;color:#475467}}
+.limitation{{background:#f8fafc;border:1px solid #e5e7eb;border-radius:16px;padding:14px;margin-top:18px;color:#475467}}
 a{{display:inline-block;margin-top:20px;color:#1d4ed8;font-weight:900;text-decoration:none}}
 </style>
 </head>
@@ -745,6 +778,45 @@ a{{display:inline-block;margin-top:20px;color:#1d4ed8;font-weight:900;text-decor
     <b>{html.escape(result.decision)}</b>
     <p>{html.escape(result.summary)}</p>
     <p><b>Recomendación:</b> {html.escape(result.recommendation)}</p>
+    <p><b>Siguiente acción:</b> {html.escape(executive.get("next_action", ""))}</p>
+  </section>
+
+  <section class="executive-grid">
+    <div class="exec-card">
+      <small>Confianza</small>
+      <b>{html.escape(str(executive.get("confidence", "")))}</b>
+      <p>{html.escape(str(executive.get("coverage_percent", 0)))}% de checks evaluados</p>
+    </div>
+    <div class="exec-card">
+      <small>Críticos</small>
+      <b>{html.escape(str(executive.get("critical_count", 0)))}</b>
+      <p>Diferencias que bloquean liberación.</p>
+    </div>
+    <div class="exec-card">
+      <small>Warnings</small>
+      <b>{html.escape(str(executive.get("warning_count", 0)))}</b>
+      <p>Diferencias que requieren confirmación.</p>
+    </div>
+    <div class="exec-card">
+      <small>No evaluados</small>
+      <b>{html.escape(str(executive.get("not_evaluated_count", 0)))}</b>
+      <p>Checks sin datos suficientes.</p>
+    </div>
+  </section>
+
+  <section class="decision">
+    <b>Top diferencias</b>
+    {difference_cards}
+  </section>
+
+  <section class="warning">
+    <b>Checks no evaluados</b>
+    <ul>{not_evaluated_items}</ul>
+  </section>
+
+  <section class="limitation">
+    <b>Limitación explícita</b>
+    <p>{html.escape(executive.get("limitation", ""))}</p>
   </section>
 
   <section class="grid">

@@ -2242,3 +2242,39 @@ No cambia:
 - Runtime Isolation general.
 
 ---
+
+
+## Sprint 29A.4 — Compare Executive Presenter
+
+Se agrega una capa ejecutiva para presentar resultados del Compare Engine.
+
+Contexto:
+
+- `ComparisonService` ya entrega checks técnicos, score, status y metadata.
+- `/compare-candidate` renderizaba directamente el resultado técnico.
+- Faltaba una lectura ejecutiva clara para preprensa.
+
+Cambios:
+
+- Se agrega `gate0/services/compare_executive_presenter.py`.
+- Se crea `build_compare_executive_summary(result)`.
+- La salida ejecutiva incluye:
+  - confianza del análisis;
+  - cobertura de checks evaluados;
+  - top diferencias priorizadas;
+  - checks no evaluados;
+  - siguiente acción;
+  - limitación explícita de comparación estructural.
+- `/compare-candidate` muestra secciones ejecutivas antes de la tabla técnica.
+- Se agregan pruebas de contrato para el presenter y el HTML.
+
+No cambia:
+
+- scoring del Compare Engine;
+- lógica técnica de comparación;
+- extracción de separaciones;
+- seguridad de rutas;
+- dashboard principal;
+- Production Readiness.
+
+---
