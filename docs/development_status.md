@@ -2450,3 +2450,58 @@ No cambia:
 - selector de perfiles.
 
 ---
+
+
+## Sprint 29B — Production Context Engine v1 Closure
+
+Se cierra Sprint 29B enfocado en convertir el contexto productivo en una capa explícita de Gate0.
+
+Incluye:
+
+- Sprint 29B.1: auditoría de contexto productivo existente.
+- Sprint 29B.2: contrato mínimo de perfil productivo.
+- Sprint 29B.3: conexión del contexto productivo con `production_readiness_v2`.
+- Sprint 29B.4: visualización compacta del contexto productivo en dashboard.
+- Sprint 29B.5: validación funcional y cierre.
+
+Resultado:
+
+- Gate0 ya no solo analiza un PDF de forma genérica.
+- Gate0 comunica contra qué perfil productivo fue evaluado el archivo.
+- El perfil productivo tiene contrato mínimo validado.
+- `production_readiness_v2.operational_context` expone:
+  - perfil;
+  - proceso;
+  - familia de sustrato;
+  - contrato;
+  - statement ejecutivo;
+  - thresholds clave.
+- El dashboard muestra el contexto productivo de forma compacta, sin competir con la decisión principal.
+
+Perfil default vigente:
+
+- `flexo / PET_BOPP`
+- TAC máximo: `280%`
+- DPI mínimo: `250`
+- separaciones normales: `≤ 8`
+
+Limitaciones vigentes:
+
+- Solo existe un perfil default operativo.
+- No hay selector de perfiles todavía.
+- No hay perfiles por cliente, planta, prensa o sistema de impresión.
+- El contexto productivo informa y encuadra la decisión, pero no cambia scoring adicional en este sprint.
+
+Estado esperado de cierre:
+
+- `python -m pytest -q` OK.
+- Dashboard validado visualmente.
+- Production Readiness sigue siendo protagonista.
+- Perfil productivo visible pero no redundante.
+- Backup final creado.
+
+Próximo bloque recomendado:
+
+- Sprint 30A — Reporte Compartible v1.
+
+---
