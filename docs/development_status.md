@@ -2324,3 +2324,37 @@ Estado esperado de cierre:
 - backup final creado.
 
 ---
+
+
+## Sprint 29B.1 — Production Context Audit
+
+Se audita la capa actual de contexto productivo.
+
+Hallazgos:
+
+- `context_engine.py` ya enriquece hallazgos técnicos.
+- `profiles/flexo_pet_bopp_default.json` ya existe como perfil operativo inicial.
+- `business_rules.py` ya carga perfiles, usa fallback y expone `operational_profile`.
+- `readiness_summary.py` ya recibe `operational_profile`.
+- `gate0_check.py` ya incluye `operational_profile` y `production_readiness_v2` en el reporte.
+- Existen pruebas base de perfil operativo.
+
+Conclusión:
+
+- Production Context ya existe parcialmente.
+- El siguiente paso no es crear todo desde cero.
+- El siguiente paso es formalizar un contrato mínimo de perfil productivo.
+
+Próximo sprint:
+
+- Sprint 29B.2 — Production Profile Contract.
+
+No cambia:
+
+- motor de análisis;
+- dashboard;
+- Compare Engine;
+- Production Readiness scoring;
+- reglas de severidad.
+
+---
