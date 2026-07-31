@@ -588,6 +588,63 @@ def _compare_display_filename(value):
         return str(value or "—")
 
 
+# Sprint 29A.3 — Compare candidate route safety helpers
+def _is_valid_compare_session_id(value):
+    value = str(value or "").strip()
+    return len(value) == 32 and all(ch in "0123456789abcdef" for ch in value.lower())
+
+
+def _path_is_inside(parent, candidate):
+    try:
+        candidate.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def _resolve_compare_candidate_path(sid, relative_file, allowed_suffixes, label):
+    sid = str(sid or "").strip()
+
+    if not _is_valid_compare_session_id(sid):
+        raise HTTPException(status_code=400, detail="sid inválido para comparación.")
+
+    raw_value = str(relative_file or "").strip()
+
+    if not raw_value:
+        raise HTTPException(status_code=400, detail=f"{label} no informado.")
+
+    if "\x00" in raw_value or "\\" in raw_value:
+        raise HTTPException(status_code=400, detail=f"{label} inválido.")
+
+    relative_path = Path(raw_value)
+
+    if relative_path.is_absolute() or any(part in {"..", ""} for part in relative_path.parts):
+        raise HTTPException(status_code=400, detail=f"{label} inválido.")
+
+    allowed_suffixes = {str(s).lower() for s in allowed_suffixes}
+    suffix = relative_path.suffix.lower()
+
+    if suffix not in allowed_suffixes:
+        expected = ", ".join(sorted(allowed_suffixes))
+        raise HTTPException(status_code=400, detail=f"{label} debe tener extensión {expected}.")
+
+    temp_root = TEMP_DIR.resolve()
+    extract_dir = (temp_root / sid).resolve()
+
+    if not _path_is_inside(temp_root, extract_dir):
+        raise HTTPException(status_code=400, detail="Sesión fuera del runtime permitido.")
+
+    candidate_path = (extract_dir / relative_path).resolve()
+
+    if not _path_is_inside(extract_dir, candidate_path):
+        raise HTTPException(status_code=400, detail=f"{label} fuera de la sesión permitida.")
+
+    if not candidate_path.exists() or not candidate_path.is_file():
+        raise HTTPException(status_code=404, detail="Archivos para comparación no encontrados o expirados.")
+
+    return candidate_path
+
+
 @app.post("/compare-candidate")
 async def compare_candidate(
     sid: str = Form(...),
@@ -597,12 +654,18 @@ async def compare_candidate(
 ):
     cleanup_old_runtime_files()
 
-    extract_dir = TEMP_DIR / sid
-    ai_path = extract_dir / ai_file
-    pdf_path = extract_dir / pdf_file
-
-    if not ai_path.exists() or not pdf_path.exists():
-        raise HTTPException(status_code=404, detail="Archivos para comparación no encontrados o expirados.")
+    ai_path = _resolve_compare_candidate_path(
+        sid=sid,
+        relative_file=ai_file,
+        allowed_suffixes={".ai"},
+        label="AI",
+    )
+    pdf_path = _resolve_compare_candidate_path(
+        sid=sid,
+        relative_file=pdf_file,
+        allowed_suffixes={".pdf"},
+        label="PDF",
+    )
 
     left = inspection_agent.inspect(ai_path)
     right = inspection_agent.inspect(pdf_path)

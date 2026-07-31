@@ -2207,3 +2207,38 @@ No cambia:
 - dashboard principal.
 
 ---
+
+
+## Sprint 29A.3 — Compare Candidate Route Safety
+
+Se protege el endpoint `/compare-candidate` contra rutas manipuladas.
+
+Contexto:
+
+- El formulario de ZIP Intake envía `sid`, `ai_file` y `pdf_file`.
+- La ruta de comparación construía paths directamente desde esos valores.
+- Era necesario asegurar que los archivos comparados permanezcan dentro de `data/runtime/temp/<sid>`.
+
+Cambios:
+
+- Se agrega `_resolve_compare_candidate_path`.
+- Se valida formato de `sid`.
+- Se rechazan paths absolutos.
+- Se rechaza path traversal (`..`).
+- Se rechazan backslashes y valores vacíos.
+- Se valida extensión esperada:
+  - AI: `.ai`
+  - PDF: `.pdf`
+- Se verifica que el archivo exista dentro de la sesión.
+- Se agregan pruebas de contrato para ruta válida, traversal, path absoluto, extensión incorrecta, sid inválido y archivo faltante.
+
+No cambia:
+
+- Compare Engine scoring;
+- Inspection Engine;
+- extracción de separaciones;
+- dashboard principal;
+- Production Readiness;
+- Runtime Isolation general.
+
+---
