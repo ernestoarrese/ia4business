@@ -341,3 +341,93 @@ def test_production_readiness_v2_does_not_downgrade_when_printable_area_is_uncon
     assert result["status"] == "REVIEW_REQUIRED"
     assert result["effective_risk_count"] == 1
     assert result["what_to_review_first"][0]["printable_area_status"] == "PRINTABLE_AREA_NOT_CONFIRMED"
+
+
+def test_production_readiness_v2_exposes_operational_context_contract_and_thresholds():
+    result = build_production_readiness_v2(
+        {"readiness_status": "READY", "readiness_decision": "GO", "readiness_score": 100},
+        [],
+        {
+            "profile_name": "flexo_pet_bopp_default",
+            "profile_version": "1.0",
+            "profile_status": "MVP_DEFAULT",
+            "profile_source": "profiles/flexo_pet_bopp_default.json",
+            "profile_file_found": True,
+            "process": "flexo",
+            "substrate_family": "PET_BOPP",
+            "production_profile_contract": "production_profile_contract_v1",
+            "profile_contract_valid": True,
+            "profile_contract_missing_fields": [],
+            "profile_context_label": "flexo / PET_BOPP",
+            "profile_thresholds": {
+                "tac_max_percent": 280,
+                "image_minimum_dpi": 250,
+                "image_recommended_dpi": 300,
+                "separation_normal_max_printable": 8,
+                "separation_warning_max_printable": 12,
+                "separation_critical_above_printable": 12,
+                "small_text_warning_threshold_pt": 5.0,
+                "small_text_critical_threshold_pt": 4.0,
+            },
+        },
+    )
+
+    context = result["operational_context"]
+
+    assert context["profile_name"] == "flexo_pet_bopp_default"
+    assert context["profile_context_label"] == "flexo / PET_BOPP"
+    assert context["production_profile_contract"] == "production_profile_contract_v1"
+    assert context["profile_contract_valid"] is True
+    assert context["context_statement"] == "Evaluado contra perfil productivo flexo / PET_BOPP."
+    assert context["key_thresholds"]["tac_max_percent"] == 280
+    assert context["key_thresholds"]["image_minimum_dpi"] == 250
+    assert context["key_thresholds"]["separation_normal_max_printable"] == 8
+    assert context["small_text_warning_threshold_pt"] == 5.0
+
+
+def test_production_readiness_v2_warns_when_profile_contract_is_incomplete():
+    result = build_production_readiness_v2(
+        {"readiness_status": "READY", "readiness_decision": "GO", "readiness_score": 100},
+        [],
+        {
+            "profile_name": "incomplete_profile",
+            "process": "flexo",
+            "substrate_family": "PET_BOPP",
+            "profile_contract_valid": False,
+            "profile_contract_missing_fields": ["tac.max_tac_percent"],
+        },
+    )
+
+    context = result["operational_context"]
+
+    assert context["profile_contract_valid"] is False
+    assert context["profile_context_label"] == "flexo / PET_BOPP"
+    assert context["profile_contract_missing_fields"] == ["tac.max_tac_percent"]
+    assert "contrato del perfil está incompleto" in context["context_statement"]
+
+
+def test_production_readiness_v2_builds_context_thresholds_from_flat_profile_summary():
+    result = build_production_readiness_v2(
+        {"readiness_status": "READY", "readiness_decision": "GO", "readiness_score": 100},
+        [],
+        {
+            "profile_name": "legacy_summary",
+            "process": "flexo",
+            "substrate_family": "PET_BOPP",
+            "tac_max_percent": 280,
+            "image_minimum_dpi": 250,
+            "image_recommended_dpi": 300,
+            "separation_normal_max_printable": 8,
+            "separation_warning_max_printable": 12,
+            "separation_critical_above_printable": 12,
+            "small_text_warning_threshold_pt": 5.0,
+            "small_text_critical_threshold_pt": 4.0,
+        },
+    )
+
+    context = result["operational_context"]
+
+    assert context["profile_context_label"] == "flexo / PET_BOPP"
+    assert context["key_thresholds"]["tac_max_percent"] == 280
+    assert context["key_thresholds"]["image_recommended_dpi"] == 300
+    assert context["key_thresholds"]["separation_critical_above_printable"] == 12

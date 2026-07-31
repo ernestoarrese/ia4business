@@ -2358,3 +2358,54 @@ No cambia:
 - reglas de severidad.
 
 ---
+
+
+## Sprint 29B.3 — Production Context Applied to Readiness
+
+Se conecta el contrato de perfil productivo con `production_readiness_v2.operational_context`.
+
+Contexto:
+
+- Sprint 29B.2 formalizó el contrato mínimo de perfil productivo.
+- `production_readiness_v2` ya recibía `operational_profile`.
+- Antes solo exponía `profile_name`, `process` y `substrate_family`.
+
+Cambios:
+
+- Se agrega `_pr2_profile_context_label`.
+- Se agrega `_pr2_profile_thresholds`.
+- Se agrega `_pr2_context_statement`.
+- Se agrega `_pr2_operational_context`.
+- `production_readiness_v2.operational_context` ahora expone:
+  - `profile_name`;
+  - `profile_version`;
+  - `profile_status`;
+  - `profile_source`;
+  - `profile_file_found`;
+  - `process`;
+  - `substrate_family`;
+  - `profile_context_label`;
+  - `production_profile_contract`;
+  - `profile_contract_valid`;
+  - `profile_contract_missing_fields`;
+  - `context_statement`;
+  - `key_thresholds`;
+  - thresholds principales en campos planos para consumo simple.
+
+Ejemplo:
+
+- `context_statement`: `Evaluado contra perfil productivo flexo / PET_BOPP.`
+- `tac_max_percent`: `280`
+- `image_minimum_dpi`: `250`
+- `separation_normal_max_printable`: `8`
+
+No cambia:
+
+- scoring;
+- reglas de severidad;
+- Production Readiness decision logic;
+- dashboard;
+- Compare Engine;
+- selector de perfiles.
+
+---

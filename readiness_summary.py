@@ -1145,6 +1145,84 @@ def _pr2_make_review_item(finding):
     }
 
 
+def _pr2_profile_context_label(operational_profile):
+    operational_profile = operational_profile or {}
+
+    label = operational_profile.get("profile_context_label")
+    if label:
+        return label
+
+    process = operational_profile.get("process") or "unknown"
+    substrate = operational_profile.get("substrate_family") or "unknown"
+
+    return f"{process} / {substrate}"
+
+
+def _pr2_profile_thresholds(operational_profile):
+    operational_profile = operational_profile or {}
+
+    thresholds = operational_profile.get("profile_thresholds")
+    if isinstance(thresholds, dict) and thresholds:
+        return thresholds
+
+    return {
+        "tac_max_percent": operational_profile.get("tac_max_percent"),
+        "image_minimum_dpi": operational_profile.get("image_minimum_dpi"),
+        "image_recommended_dpi": operational_profile.get("image_recommended_dpi"),
+        "separation_normal_max_printable": operational_profile.get("separation_normal_max_printable"),
+        "separation_warning_max_printable": operational_profile.get("separation_warning_max_printable"),
+        "separation_critical_above_printable": operational_profile.get("separation_critical_above_printable"),
+        "small_text_warning_threshold_pt": operational_profile.get("small_text_warning_threshold_pt"),
+        "small_text_critical_threshold_pt": operational_profile.get("small_text_critical_threshold_pt"),
+    }
+
+
+def _pr2_context_statement(operational_profile):
+    operational_profile = operational_profile or {}
+    label = _pr2_profile_context_label(operational_profile)
+    valid = operational_profile.get("profile_contract_valid")
+
+    if valid is False:
+        return (
+            f"Evaluado contra perfil {label}, pero el contrato del perfil está incompleto. "
+            "Revisar configuración antes de usarlo como estándar final."
+        )
+
+    if label and label != "unknown / unknown":
+        return f"Evaluado contra perfil productivo {label}."
+
+    return "Evaluado contra perfil productivo no especificado."
+
+
+def _pr2_operational_context(operational_profile):
+    operational_profile = operational_profile or {}
+    thresholds = _pr2_profile_thresholds(operational_profile)
+
+    return {
+        "profile_name": operational_profile.get("profile_name"),
+        "profile_version": operational_profile.get("profile_version"),
+        "profile_status": operational_profile.get("profile_status"),
+        "profile_source": operational_profile.get("profile_source"),
+        "profile_file_found": operational_profile.get("profile_file_found"),
+        "process": operational_profile.get("process"),
+        "substrate_family": operational_profile.get("substrate_family"),
+        "profile_context_label": _pr2_profile_context_label(operational_profile),
+        "production_profile_contract": operational_profile.get("production_profile_contract"),
+        "profile_contract_valid": operational_profile.get("profile_contract_valid"),
+        "profile_contract_missing_fields": operational_profile.get("profile_contract_missing_fields", []),
+        "context_statement": _pr2_context_statement(operational_profile),
+        "key_thresholds": thresholds,
+        "tac_max_percent": thresholds.get("tac_max_percent"),
+        "image_minimum_dpi": thresholds.get("image_minimum_dpi"),
+        "image_recommended_dpi": thresholds.get("image_recommended_dpi"),
+        "separation_normal_max_printable": thresholds.get("separation_normal_max_printable"),
+        "separation_warning_max_printable": thresholds.get("separation_warning_max_printable"),
+        "separation_critical_above_printable": thresholds.get("separation_critical_above_printable"),
+        "small_text_warning_threshold_pt": thresholds.get("small_text_warning_threshold_pt"),
+        "small_text_critical_threshold_pt": thresholds.get("small_text_critical_threshold_pt"),
+    }
+
+
 def build_production_readiness_v2(readiness_assessment, priority_findings, operational_profile=None):
     """
     Production Readiness v2 with printable area priority filter.
@@ -1244,11 +1322,7 @@ def build_production_readiness_v2(readiness_assessment, priority_findings, opera
         "warning_risk_count": len(warning_risks),
         "contextual_note_count": len(contextual_risks),
         "what_to_review_first": review_items,
-        "operational_context": {
-            "profile_name": operational_profile.get("profile_name"),
-            "process": operational_profile.get("process"),
-            "substrate_family": operational_profile.get("substrate_family"),
-        },
+        "operational_context": _pr2_operational_context(operational_profile),
         "product_note": (
             "Production Readiness v2 es una capa ejecutiva de decisión. "
             "No reemplaza aún el criterio final de preprensa."

@@ -169,3 +169,35 @@ def test_pr2_repeated_small_text_remains_deduplicated():
     assert len(result["what_to_review_first"]) == 1
     assert result["what_to_review_first"][0]["title"] == "Revisar texto pequeño"
     assert result["what_to_review_first"][0]["occurrence_count"] == 2
+
+
+def test_pr2_operational_context_includes_profile_context_statement():
+    result = build_production_readiness_v2(
+        {
+            "readiness_status": "READY",
+            "readiness_decision": "GO",
+            "readiness_score": 100,
+        },
+        [],
+        {
+            "profile_name": "flexo_pet_bopp_default",
+            "process": "flexo",
+            "substrate_family": "PET_BOPP",
+            "profile_context_label": "flexo / PET_BOPP",
+            "profile_contract_valid": True,
+            "profile_thresholds": {
+                "tac_max_percent": 280,
+                "image_minimum_dpi": 250,
+                "image_recommended_dpi": 300,
+                "separation_normal_max_printable": 8,
+                "separation_warning_max_printable": 12,
+                "separation_critical_above_printable": 12,
+                "small_text_warning_threshold_pt": 5.0,
+                "small_text_critical_threshold_pt": 4.0,
+            },
+        },
+    )
+
+    assert result["operational_context"]["profile_context_label"] == "flexo / PET_BOPP"
+    assert result["operational_context"]["context_statement"] == "Evaluado contra perfil productivo flexo / PET_BOPP."
+    assert result["operational_context"]["key_thresholds"]["tac_max_percent"] == 280
