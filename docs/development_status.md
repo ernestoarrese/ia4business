@@ -2143,3 +2143,33 @@ No cambia:
 - Runtime Isolation.
 
 ---
+
+
+## Sprint 29A.1 — Compare Engine Guardrails
+
+Se agregan guardrails al Compare Engine v2 para evitar falsos OK.
+
+Problemas corregidos:
+
+- Datos no evaluables ya no cuentan como coincidencia confirmada.
+- Si faltan datos estructurales, el resultado pasa a `REVIEW_REQUIRED`, no `OK`.
+- Tamaño de página compara todas las páginas, no solo la primera.
+- Warnings acumulados no producen mensaje de “diferencias críticas” si no existe ningún check `CRITICAL`.
+
+Cambios:
+
+- `ComparisonService` agrega estado `NOT_EVALUATED`.
+- `Page size` compara todos los `page_boxes`.
+- Metadata agrega `not_evaluated_count`.
+- Modo pasa a `structural_v2_guardrails`.
+- Se agregan pruebas de contrato para evitar regresión.
+
+No cambia:
+
+- endpoint `/compare-candidate`;
+- dashboard principal;
+- motor principal Gate0;
+- reglas de Production Readiness;
+- Runtime Isolation.
+
+---

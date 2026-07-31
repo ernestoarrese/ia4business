@@ -80,57 +80,118 @@ class ComparisonService:
         except (TypeError, ValueError):
             return False
 
+    def _page_size_from_box(self, box):
+        box = box or {}
+        return (box.get("width_mm"), box.get("height_mm"))
+
+    def _compare_all_page_sizes(self, left_page_boxes, right_page_boxes):
+        if not left_page_boxes or not right_page_boxes:
+            return {
+                "status": "NOT_EVALUATED",
+                "left": left_page_boxes or [],
+                "right": right_page_boxes or [],
+                "message": "No hay información suficiente de tamaño de página para comparar.",
+            }
+
+        if len(left_page_boxes) != len(right_page_boxes):
+            return {
+                "status": "CRITICAL",
+                "left": [self._page_size_from_box(b) for b in left_page_boxes],
+                "right": [self._page_size_from_box(b) for b in right_page_boxes],
+                "message": "La cantidad de cajas de página no coincide. Validar exportación, páginas o arte final.",
+            }
+
+        mismatches = []
+
+        for index, (left_box, right_box) in enumerate(zip(left_page_boxes, right_page_boxes), start=1):
+            left_size = self._page_size_from_box(left_box)
+            right_size = self._page_size_from_box(right_box)
+
+            if not self._page_size_matches(left_size, right_size):
+                mismatches.append({
+                    "page": index,
+                    "left": left_size,
+                    "right": right_size,
+                })
+
+        if mismatches:
+            return {
+                "status": "CRITICAL",
+                "left": [self._page_size_from_box(b) for b in left_page_boxes],
+                "right": [self._page_size_from_box(b) for b in right_page_boxes],
+                "message": "El tamaño de una o más páginas cambió. Validar plano, sangrado, caja de corte o exportación.",
+                "mismatches": mismatches,
+            }
+
+        return {
+            "status": "OK",
+            "left": [self._page_size_from_box(b) for b in left_page_boxes],
+            "right": [self._page_size_from_box(b) for b in right_page_boxes],
+            "message": "",
+        }
+
     def compare_inspection_results(self, left, right) -> ComparisonResult:
         checks = []
         warnings = []
         score = 100
 
-        def add_check(category, name, status, left_value, right_value, penalty=0, message=""):
+        def add_check(category, name, status, left_value, right_value, penalty=0, message="", metadata=None):
             nonlocal score
 
             if status != "OK":
                 score -= penalty
 
-            checks.append({
+            check = {
                 "category": category,
                 "name": name,
                 "status": status,
                 "left": left_value,
                 "right": right_value,
                 "message": message,
-            })
+            }
+
+            if metadata:
+                check["metadata"] = metadata
+
+            checks.append(check)
 
         left_pages = getattr(left, "pages", 0)
         right_pages = getattr(right, "pages", 0)
 
-        add_check(
-            "Pages",
-            "Page count",
-            "OK" if left_pages == right_pages else "CRITICAL",
-            left_pages,
-            right_pages,
-            penalty=30,
-            message="La cantidad de páginas cambió entre el AI y el PDF." if left_pages != right_pages else "",
-        )
+        if not left_pages or not right_pages:
+            add_check(
+                "Pages",
+                "Page count",
+                "NOT_EVALUATED",
+                left_pages,
+                right_pages,
+                penalty=10,
+                message="No hay información suficiente de cantidad de páginas para comparar.",
+            )
+        else:
+            add_check(
+                "Pages",
+                "Page count",
+                "OK" if left_pages == right_pages else "CRITICAL",
+                left_pages,
+                right_pages,
+                penalty=30,
+                message="La cantidad de páginas cambió entre el AI y el PDF." if left_pages != right_pages else "",
+            )
 
         left_page_boxes = getattr(left, "page_boxes", []) or []
         right_page_boxes = getattr(right, "page_boxes", []) or []
+        page_size_result = self._compare_all_page_sizes(left_page_boxes, right_page_boxes)
 
-        left_box = left_page_boxes[0] if left_page_boxes else {}
-        right_box = right_page_boxes[0] if right_page_boxes else {}
-
-        left_size = (left_box.get("width_mm"), left_box.get("height_mm"))
-        right_size = (right_box.get("width_mm"), right_box.get("height_mm"))
-
-        size_ok = self._page_size_matches(left_size, right_size)
         add_check(
             "Pages",
             "Page size",
-            "OK" if size_ok else "CRITICAL",
-            left_size,
-            right_size,
-            penalty=30,
-            message="El tamaño de página cambió. Validar plano, sangrado, caja de corte o exportación." if not size_ok else "",
+            page_size_result["status"],
+            page_size_result["left"],
+            page_size_result["right"],
+            penalty=30 if page_size_result["status"] == "CRITICAL" else 10,
+            message=page_size_result["message"],
+            metadata={"mismatches": page_size_result.get("mismatches", [])},
         )
 
         left_fonts = sorted({
@@ -145,44 +206,77 @@ class ComparisonService:
             if f.get("font_name")
         })
 
-        add_check(
-            "Fonts",
-            "Live fonts",
-            "OK" if left_fonts == right_fonts else "WARNING",
-            left_fonts,
-            right_fonts,
-            penalty=15,
-            message="Las fuentes vivas no coinciden. Validar si hubo conversión a curvas, sustitución o pérdida de texto editable." if left_fonts != right_fonts else "",
-        )
+        if not left_fonts and not right_fonts:
+            add_check(
+                "Fonts",
+                "Live fonts",
+                "NOT_EVALUATED",
+                left_fonts,
+                right_fonts,
+                penalty=5,
+                message="No hay fuentes vivas evaluables en ambos archivos. Puede ser correcto si todo fue convertido a curvas, pero no debe contarse como coincidencia confirmada.",
+            )
+        else:
+            add_check(
+                "Fonts",
+                "Live fonts",
+                "OK" if left_fonts == right_fonts else "WARNING",
+                left_fonts,
+                right_fonts,
+                penalty=15,
+                message="Las fuentes vivas no coinciden. Validar si hubo conversión a curvas, sustitución o pérdida de texto editable." if left_fonts != right_fonts else "",
+            )
 
         left_seps = sorted(getattr(left, "separations", []) or [])
         right_seps = sorted(getattr(right, "separations", []) or [])
 
-        add_check(
-            "Structure",
-            "Separations",
-            "OK" if left_seps == right_seps else "WARNING",
-            left_seps,
-            right_seps,
-            penalty=25,
-            message="Las separaciones no coinciden. Revisar tintas spot, blanco, barniz, plano técnico o conversión no esperada." if left_seps != right_seps else "",
-        )
+        if not left_seps and not right_seps:
+            add_check(
+                "Structure",
+                "Separations",
+                "NOT_EVALUATED",
+                left_seps,
+                right_seps,
+                penalty=10,
+                message="No hay separaciones evaluables en ambos archivos. El Compare Engine aún no debe interpretar listas vacías como coincidencia confirmada.",
+            )
+        else:
+            add_check(
+                "Structure",
+                "Separations",
+                "OK" if left_seps == right_seps else "WARNING",
+                left_seps,
+                right_seps,
+                penalty=25,
+                message="Las separaciones no coinciden. Revisar tintas spot, blanco, barniz, plano técnico o conversión no esperada." if left_seps != right_seps else "",
+            )
 
         score = max(0, score)
 
         critical_count = sum(1 for check in checks if check["status"] == "CRITICAL")
         warning_count = sum(1 for check in checks if check["status"] == "WARNING")
+        not_evaluated_count = sum(1 for check in checks if check["status"] == "NOT_EVALUATED")
 
-        if critical_count > 0 or score < 70:
+        if critical_count > 0:
             overall_status = "HIGH_RISK"
             decision = "No liberar sin revisión técnica"
             summary = "Se detectaron diferencias críticas entre el AI y el PDF."
             recommendation = "Comparar contra el arte aprobado antes de liberar a producción. Priorizar páginas, tamaño final y separaciones."
-        elif warning_count > 0 or score < 95:
+        elif warning_count > 0:
             overall_status = "REVIEW_REQUIRED"
             decision = "Revisar diferencias antes de liberar"
             summary = "La comparación estructural encontró diferencias que podrían ser válidas, pero requieren confirmación."
             recommendation = "Validar fuentes, separaciones y cambios esperados antes de continuar."
+        elif not_evaluated_count > 0:
+            overall_status = "REVIEW_REQUIRED"
+            decision = "Revisión requerida por cobertura incompleta"
+            summary = "La comparación estructural no tuvo datos suficientes para confirmar consistencia completa."
+            recommendation = "No interpretar este resultado como OK. Completar revisión manual o mejorar extracción antes de liberar."
+        elif score < 95:
+            overall_status = "REVIEW_REQUIRED"
+            decision = "Revisar diferencias antes de liberar"
+            summary = "La comparación estructural encontró señales que requieren confirmación."
+            recommendation = "Validar los puntos observados antes de continuar."
         else:
             overall_status = "OK"
             decision = "Consistencia estructural aceptable"
@@ -208,9 +302,10 @@ class ComparisonService:
             warnings=warnings,
             metadata={
                 "comparison_type": "InspectionResult vs InspectionResult",
-                "mode": "structural_v2",
+                "mode": "structural_v2_guardrails",
                 "critical_count": critical_count,
                 "warning_count": warning_count,
+                "not_evaluated_count": not_evaluated_count,
                 "categories": sorted({check["category"] for check in checks}),
             },
         )
