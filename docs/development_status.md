@@ -2631,3 +2631,68 @@ No cambia:
 - Compare Engine.
 
 ---
+
+
+## Sprint 30A — Shareable Report v1 Closure
+
+Se cierra Sprint 30A enfocado en crear una salida ejecutiva compartible para Gate0.
+
+Incluye:
+
+- Sprint 30A.1: auditoría de base para reporte compartible.
+- Sprint 30A.2: `Shareable Report Presenter`.
+- Sprint 30A.3: ruta imprimible `/report/print?sid=...`.
+- Sprint 30A.4: botón `Reporte ejecutivo` en dashboard y compactación de ocurrencias en Production Readiness.
+- Sprint 30A.5: validación funcional y cierre.
+
+Resultado:
+
+- Gate0 ya puede convertir el análisis completo en una hoja ejecutiva compartible.
+- El reporte usa `report_data` existente.
+- El reporte consume `production_readiness_v2`.
+- El reporte incluye contexto productivo compacto.
+- El dashboard permite abrir el reporte ejecutivo desde el header.
+- El usuario puede imprimir o guardar PDF desde el navegador.
+- Production Readiness queda más limpio al no mostrar ocurrencias redundantes en el bloque ejecutivo.
+
+Contenido del reporte:
+
+- archivo;
+- cliente;
+- páginas;
+- fecha de análisis;
+- decisión;
+- readiness score;
+- perfil productivo;
+- contexto productivo;
+- top 3 riesgos;
+- acción recomendada;
+- limitaciones.
+
+Decisión UX:
+
+- El reporte compartible no reemplaza al dashboard.
+- El dashboard mantiene evidencia y detalle técnico.
+- El reporte funciona como hoja ejecutiva para compartir decisión y próximos pasos.
+
+Limitaciones vigentes:
+
+- No hay generación PDF backend nativa.
+- El guardado como PDF depende del navegador.
+- No hay firma, aprobación o workflow de liberación.
+- No incluye evidencia visual completa.
+- No incluye tabla técnica completa.
+
+Estado esperado de cierre:
+
+- `python -m pytest -q` OK.
+- Dashboard validado visualmente.
+- `/report/print?sid=...` validado visualmente.
+- Botón `Reporte ejecutivo` validado.
+- Backup final creado.
+
+Próximo bloque recomendado:
+
+- Sprint 30B — Real File Validation Pack.
+
+---
