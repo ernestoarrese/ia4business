@@ -648,7 +648,10 @@
       <div class="logo">G0</div>
       <div><h1>Gate0 Packaging QA</h1><div class="sub">Operational Release Dashboard</div></div>
     </div>
-    <div class="actions"><a href="/">Nuevo análisis</a></div>
+    <div class="actions">
+      <a href="/">Nuevo análisis</a>
+      <a id="shareableReportLink" href="#" target="_blank" rel="noopener">Reporte ejecutivo</a>
+    </div>
   </header>
 
   
@@ -755,6 +758,19 @@ function toggleOperationalProfile(){
 
 function displayName(check){
   return CHECK_NAMES[check] || check;
+}
+
+function configureShareableReportLink(){
+  const link=$("shareableReportLink");
+  if(!link)return;
+
+  if(SID){
+    link.href=`/report/print?sid=${encodeURIComponent(SID)}`;
+    link.removeAttribute("aria-disabled");
+  }else{
+    link.href="#";
+    link.setAttribute("aria-disabled","true");
+  }
 }
 
 let currentReport=null,currentRisks=[],currentSelectedRiskIndex=0,currentOccurrenceIndex=0;
@@ -986,8 +1002,6 @@ function renderProductionReadinessV2(data){
           ${review.slice(0,5).map(item=>{
             const title=item.title||item.check||"Riesgo técnico";
             const check=item.check||"";
-            const count=Number(item.occurrence_count||1);
-            const suffix=count>1?` (${count} ocurrencias)`:"";
 
             return `
               <li>
@@ -997,7 +1011,7 @@ function renderProductionReadinessV2(data){
                   data-pr2-check="${esc(check)}"
                   data-pr2-title="${esc(title)}"
                   onclick="selectProductionReadinessRisk('${esc(check)}','${esc(title)}')"
-                >${esc(title)}</button>${suffix?`<span class="occurrence-count">${esc(suffix)}</span>`:""}
+                >${esc(title)}</button>
                 ${item.reason?`<span>${esc(item.reason)}</span>`:""}
               </li>
             `;
@@ -2000,6 +2014,7 @@ async function loadReport(){
   }
 }
 
+configureShareableReportLink();
 if($("pdfFrame")) $("pdfFrame").src=`/api/pdf?sid=${encodeURIComponent(SID||"")}`;
 loadReport();
 

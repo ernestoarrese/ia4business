@@ -2601,3 +2601,33 @@ Próximo sprint:
 - Sprint 30A.4 — Dashboard Report Button.
 
 ---
+
+
+## Sprint 30A.4 — Dashboard Report Button + PR Compact Occurrences
+
+Se conecta el reporte ejecutivo imprimible desde el dashboard y se compacta el bloque ejecutivo de Production Readiness.
+
+Cambios:
+
+- Se agrega botón `Reporte ejecutivo` en el header del dashboard.
+- El botón abre `/report/print?sid=...` en una nueva pestaña.
+- Se mantiene `Nuevo análisis` como acción principal existente.
+- En `Qué revisar primero`, se oculta el conteo tipo `(66 ocurrencias)` para evitar redundancia ejecutiva.
+- El conteo de ocurrencias se mantiene disponible en el detalle del riesgo, donde sí aporta evidencia.
+
+Decisión UX:
+
+- Production Readiness debe responder qué revisar primero.
+- El número de ocurrencias no debe competir con la lectura ejecutiva.
+- El reporte ejecutivo debe estar disponible sin convertir el dashboard en un reporte.
+
+No cambia:
+
+- ruta `/report/print`;
+- presenter de reporte;
+- scoring;
+- reglas de severidad;
+- evidencia técnica;
+- Compare Engine.
+
+---
